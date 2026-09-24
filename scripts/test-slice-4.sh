@@ -898,7 +898,7 @@ curl -s -X GET "${BASE_URL}/api/v1/owners/profile" \
     -o "${TMP_DIR}/del_profile_body.json" >/dev/null
 DEL_OWNER_PROFILE_ID=$(jq -r '.data.id // empty' "${TMP_DIR}/del_profile_body.json" 2>/dev/null || echo "")
 
-# Upload a real document for this owner
+# 1. Upload owner identity document (KYC)
 DEL_DOC_BODY="${TMP_DIR}/del_doc_body.json"
 curl -s -X POST "${BASE_URL}/api/v1/documents" \
     -H "Authorization: Bearer ${DEL_OWNER_TOKEN}" \
@@ -907,18 +907,42 @@ curl -s -X POST "${BASE_URL}/api/v1/documents" \
     -o "$DEL_DOC_BODY" >/dev/null
 DEL_DOC_ID=$(jq -r '.data.id // empty' "$DEL_DOC_BODY" 2>/dev/null || echo "")
 
-DEL_STORAGE_KEY=$(execute_db_sql "SELECT storage_key FROM documents WHERE id = ${DEL_DOC_ID};" | tr -d '[:space:]')
+# 2. Create property draft for this owner
+DEL_PROP_CREATE_BODY="${TMP_DIR}/del_prop_create_body.json"
+curl -s -X POST "${BASE_URL}/api/v1/properties" \
+    -H "Authorization: Bearer ${DEL_OWNER_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$PROPERTY_PAYLOAD_1" \
+    -o "$DEL_PROP_CREATE_BODY" >/dev/null
+DEL_PROP_ID=$(jq -r '.data.id // empty' "$DEL_PROP_CREATE_BODY" 2>/dev/null || echo "")
 
-# Verify physical file exists on disk inside container before deletion
-FILE_EXISTS_BEFORE=false
-if docker exec platform-backend test -f "/var/app/secure-docs/${DEL_STORAGE_KEY}" 2>/dev/null; then
-    FILE_EXISTS_BEFORE=true
+# 3. Upload property-attached document (TITLE_DEED) linked to the property
+DEL_PROP_DOC_BODY="${TMP_DIR}/del_prop_doc_body.json"
+curl -s -X POST "${BASE_URL}/api/v1/documents" \
+    -H "Authorization: Bearer ${DEL_OWNER_TOKEN}" \
+    -F "file=@${VALID_PDF};type=application/pdf" \
+    -F "documentType=TITLE_DEED" \
+    -F "propertyId=${DEL_PROP_ID}" \
+    -o "$DEL_PROP_DOC_BODY" >/dev/null
+DEL_PROP_DOC_ID=$(jq -r '.data.id // empty' "$DEL_PROP_DOC_BODY" 2>/dev/null || echo "")
+
+DEL_STORAGE_KEY_KYC=$(execute_db_sql "SELECT storage_key FROM documents WHERE id = ${DEL_DOC_ID};" | tr -d '[:space:]')
+DEL_STORAGE_KEY_PROP=$(execute_db_sql "SELECT storage_key FROM documents WHERE id = ${DEL_PROP_DOC_ID};" | tr -d '[:space:]')
+
+# Verify both physical files exist on disk inside container before deletion
+KYC_FILE_EXISTS_BEFORE=false
+PROP_FILE_EXISTS_BEFORE=false
+if docker exec platform-backend test -f "/var/app/secure-docs/${DEL_STORAGE_KEY_KYC}" 2>/dev/null; then
+    KYC_FILE_EXISTS_BEFORE=true
+fi
+if docker exec platform-backend test -f "/var/app/secure-docs/${DEL_STORAGE_KEY_PROP}" 2>/dev/null; then
+    PROP_FILE_EXISTS_BEFORE=true
 fi
 
-if [ "$FILE_EXISTS_BEFORE" = true ] && [ -n "$DEL_DOC_ID" ]; then
-    pass_test "Pre-Deletion KYC File Verification" "Document ID ${DEL_DOC_ID} and physical disk file /var/app/secure-docs/${DEL_STORAGE_KEY} confirmed present"
+if [ "$KYC_FILE_EXISTS_BEFORE" = true ] && [ "$PROP_FILE_EXISTS_BEFORE" = true ] && [ -n "$DEL_DOC_ID" ] && [ -n "$DEL_PROP_DOC_ID" ]; then
+    pass_test "Pre-Deletion KYC & Property Document Verification" "Both files confirmed on disk: KYC=${DEL_STORAGE_KEY_KYC}, PropDoc=${DEL_STORAGE_KEY_PROP}"
 else
-    fail_test "Pre-Deletion KYC File Verification" "File or document not found before deletion (docId=${DEL_DOC_ID}, key=${DEL_STORAGE_KEY})"
+    fail_test "Pre-Deletion KYC & Property Document Verification" "Files not found on disk before deletion (KYC=${KYC_FILE_EXISTS_BEFORE}, Prop=${PROP_FILE_EXISTS_BEFORE})"
 fi
 
 # Execute account deletion (DELETE /api/v1/owners/account)
@@ -933,24 +957,36 @@ else
     fail_test "Account Deletion Endpoint" "Expected HTTP 200, got ${HTTP_CODE_DEL_ACC}. Body: $(cat "${TMP_DIR}/del_acc_body.json")"
 fi
 
-# Verify physical KYC file is purged from disk
-FILE_EXISTS_AFTER=false
-if docker exec platform-backend test -f "/var/app/secure-docs/${DEL_STORAGE_KEY}" 2>/dev/null; then
-    FILE_EXISTS_AFTER=true
+# Verify BOTH physical files are purged from disk
+KYC_FILE_EXISTS_AFTER=false
+PROP_FILE_EXISTS_AFTER=false
+if docker exec platform-backend test -f "/var/app/secure-docs/${DEL_STORAGE_KEY_KYC}" 2>/dev/null; then
+    KYC_FILE_EXISTS_AFTER=true
+fi
+if docker exec platform-backend test -f "/var/app/secure-docs/${DEL_STORAGE_KEY_PROP}" 2>/dev/null; then
+    PROP_FILE_EXISTS_AFTER=true
 fi
 
-if [ "$FILE_EXISTS_AFTER" = false ]; then
-    pass_test "Physical KYC File Purge on Erasure" "Physical file /var/app/secure-docs/${DEL_STORAGE_KEY} confirmed PURGED from disk"
+if [ "$KYC_FILE_EXISTS_AFTER" = false ] && [ "$PROP_FILE_EXISTS_AFTER" = false ]; then
+    pass_test "Physical KYC & Property Files Purge on Erasure" "BOTH physical files (KYC + property title deed) confirmed PURGED from disk"
 else
-    fail_test "Physical KYC File Purge on Erasure" "Physical file still exists on disk after account deletion!"
+    fail_test "Physical KYC & Property Files Purge on Erasure" "Physical files still exist on disk! (KYC=${KYC_FILE_EXISTS_AFTER}, Prop=${PROP_FILE_EXISTS_AFTER})"
 fi
 
-# Verify document record removed from DB
-DOC_COUNT_AFTER=$(execute_db_sql "SELECT COUNT(*) FROM documents WHERE id = ${DEL_DOC_ID};" | tr -d '[:space:]')
+# Verify BOTH document records removed from DB
+DOC_COUNT_AFTER=$(execute_db_sql "SELECT COUNT(*) FROM documents WHERE id IN (${DEL_DOC_ID}, ${DEL_PROP_DOC_ID});" | tr -d '[:space:]')
 if [ "$DOC_COUNT_AFTER" = "0" ]; then
-    pass_test "Document Record Removal" "Document record ${DEL_DOC_ID} confirmed purged from database"
+    pass_test "Document Records Removal" "Both document records (${DEL_DOC_ID}, ${DEL_PROP_DOC_ID}) confirmed purged from database"
 else
-    fail_test "Document Record Removal" "Document record still present in DB (count=${DOC_COUNT_AFTER})"
+    fail_test "Document Records Removal" "Document records still present in DB (count=${DOC_COUNT_AFTER})"
+fi
+
+# Verify property removed from DB
+PROP_COUNT_AFTER=$(execute_db_sql "SELECT COUNT(*) FROM properties WHERE id = ${DEL_PROP_ID};" | tr -d '[:space:]')
+if [ "$PROP_COUNT_AFTER" = "0" ]; then
+    pass_test "Property Removal on Account Erasure" "Property ${DEL_PROP_ID} confirmed purged from database"
+else
+    fail_test "Property Removal on Account Erasure" "Property record still present in DB (count=${PROP_COUNT_AFTER})"
 fi
 
 # Verify owner profile and user removed from DB

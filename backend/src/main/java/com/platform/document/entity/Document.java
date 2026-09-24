@@ -22,7 +22,7 @@ public class Document {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_profile_id", nullable = false)
+    @JoinColumn(name = "owner_profile_id")
     private OwnerProfile ownerProfile;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -81,7 +81,7 @@ class DocumentCleanupServiceTest {
         Document d1 = Document.builder().id(1L).storageKey("docs/owner_doc1.pdf").build();
         Document d2 = Document.builder().id(2L).storageKey("docs/owner_doc2.pdf").build();
 
-        when(documentRepository.findByOwnerProfileId(50L)).thenReturn(List.of(d1, d2));
+        when(documentRepository.findAllByOwnerProfileIdOrPropertyOwnerProfileId(50L)).thenReturn(List.of(d1, d2));
 
         int purgedCount = cleanupService.purgeAllDocumentsForOwnerProfile(50L);
 
@@ -90,5 +90,22 @@ class DocumentCleanupServiceTest {
         assertThat(Files.exists(doc2)).isFalse();
         verify(documentRepository, times(1)).delete(d1);
         verify(documentRepository, times(1)).delete(d2);
+    }
+
+    @Test
+    void purgeAllDocumentsForProperty_deletesAllPropertyAttachedFiles() throws IOException {
+        Path propDoc = tempDir.resolve("docs/property_deed.pdf");
+        Files.createDirectories(propDoc.getParent());
+        Files.writeString(propDoc, "property title deed content");
+
+        Document d = Document.builder().id(3L).storageKey("docs/property_deed.pdf").build();
+
+        when(documentRepository.findByPropertyId(77L)).thenReturn(List.of(d));
+
+        int purgedCount = cleanupService.purgeAllDocumentsForProperty(77L);
+
+        assertThat(purgedCount).isEqualTo(1);
+        assertThat(Files.exists(propDoc)).isFalse();
+        verify(documentRepository, times(1)).delete(d);
     }
 }

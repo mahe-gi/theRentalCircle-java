@@ -127,23 +127,28 @@ public class OwnerProfileService {
 
         Long ownerProfileId = profile.getId();
 
-        // 1. Purge physical KYC files from disk and remove document DB records
+        // 1. Purge all physical KYC & property-attached document files from disk and remove DB records
         int purgedDocs = documentCleanupService.purgeAllDocumentsForOwnerProfile(ownerProfileId);
-        log.info("Purged {} physical KYC files and records for owner profile id: {}", purgedDocs, ownerProfileId);
+        log.info("Purged {} physical document files and records for owner profile id: {}", purgedDocs, ownerProfileId);
 
-        // 2. Clean up property images from disk for any properties owned by this owner
+        // 2. Clean up property images and property documents from disk for any properties owned by this owner
         List<Property> properties = propertyRepository.findByOwnerProfileId(ownerProfileId);
         for (Property property : properties) {
             propertyImageService.deleteAllImagesForProperty(property.getId());
+            documentCleanupService.purgeAllDocumentsForProperty(property.getId());
+            propertyRepository.delete(property);
         }
+        propertyRepository.flush();
 
         // 3. Revoke all refresh tokens for this user
         refreshTokenRepository.revokeAllByUserId(userId, Instant.now());
 
-        // 4. Remove owner profile and user (cascade deletes properties, user_roles in DB)
+        // 4. Remove owner profile and user
         User user = profile.getUser();
         ownerProfileRepository.delete(profile);
+        ownerProfileRepository.flush();
         userRepository.delete(user);
-        log.info("Owner account, documents, and user data id: {} permanently deleted and purged", userId);
+        userRepository.flush();
+        log.info("Owner account, documents, properties, and user data id: {} permanently deleted and purged", userId);
     }
 }

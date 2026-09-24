@@ -59,12 +59,28 @@ public class DocumentCleanupService {
     }
 
     /**
-     * Purges all documents belonging to an owner profile upon account deletion or erasure request.
+     * Purges all documents belonging to an owner profile (including direct KYC documents
+     * and property-attached documents) upon account deletion or erasure request.
      */
     @Transactional
     public int purgeAllDocumentsForOwnerProfile(Long ownerProfileId) {
-        List<Document> documents = documentRepository.findByOwnerProfileId(ownerProfileId);
-        log.info("Purging all {} documents for owner profile id: {}", documents.size(), ownerProfileId);
+        List<Document> documents = documentRepository.findAllByOwnerProfileIdOrPropertyOwnerProfileId(ownerProfileId);
+        log.info("Purging all {} documents (owner-level + property-attached) for owner profile id: {}", documents.size(), ownerProfileId);
+        int count = 0;
+        for (Document doc : documents) {
+            deletePhysicalFileAndRecord(doc);
+            count++;
+        }
+        return count;
+    }
+
+    /**
+     * Purges all documents attached to a specific property.
+     */
+    @Transactional
+    public int purgeAllDocumentsForProperty(Long propertyId) {
+        List<Document> documents = documentRepository.findByPropertyId(propertyId);
+        log.info("Purging all {} documents for property id: {}", documents.size(), propertyId);
         int count = 0;
         for (Document doc : documents) {
             deletePhysicalFileAndRecord(doc);
