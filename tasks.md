@@ -160,17 +160,18 @@ bash scripts/test-slice-3.sh
 #### Tasks:
 - [x] **TASK-401**: Database Architect — Write Flyway migration `V4__verification_documents.sql`:
   * Create `documents` table with explicit foreign keys (`owner_profile_id`, `property_id` [nullable], `document_type`, `storage_key`, `original_filename`, `file_size_bytes`, `content_type`, `status` ['UPLOADED', 'UNDER_REVIEW', 'VERIFIED', 'REJECTED'], `rejection_reason`).
-  * Create `admin_document_access` audit table (`id`, `admin_id`, `document_id`, `owner_profile_id`, `action`, `ip_address`, `created_at`).
+  * Create canonical `admin_actions` audit table (`id`, `admin_id`, `action`, `target_type`, `target_id`, `details`, `ip_address`, `created_at`) preserving strictly 17 canonical tables.
   * Modify `owner_profiles`: add `verification_status` with values ('NOT_STARTED', 'SUBMITTED', 'UNDER_REVIEW', 'MORE_INFORMATION_REQUIRED', 'VERIFIED', 'REJECTED'), `verified_by`, `verified_at`, `admin_remarks` (zero plaintext PAN/Aadhaar columns!).
   * Modify `properties`: update status constraint to include ('DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'MORE_INFORMATION_REQUIRED', 'APPROVED', 'LIVE', 'REJECTED', 'SUSPENDED'), add `reviewed_by`, `reviewed_at`, `admin_remarks`.
   * Add partial unique index: `CREATE UNIQUE INDEX uq_property_primary_image ON property_images(property_id) WHERE is_primary = TRUE;`.
-- [x] **TASK-402**: Private Storage & Document Specialist — Implement `DocumentStorageService` & `DocumentController`:
-  * Storage path: `/var/app/secure-docs/` (mounted volume, strictly unmapped in Nginx).
+- [x] **TASK-402**: Private Storage & Document Specialist — Implement `DocumentStorageService`, `DocumentCleanupService` & `DocumentController`:
+  * Storage path: `/var/app/secure-docs/` (mounted volume, not mapped into Nginx static serving configuration).
   * 20MB limit, whitelist (`.pdf`, `.jpg`, `.jpeg`, `.png`), magic-byte inspection (PDF, JPEG, PNG).
   * `POST /api/v1/documents`: uploads owner KYC document, generates UUID storage key (`docs/<uuid>.<ext>`), orphan cleanup on DB failure.
   * `GET /api/v1/documents/{id}/download`: authenticated streaming download. Permitted ONLY for owning owner (`document.ownerProfile.userId == currentUserId`) or users with `ROLE_ADMIN`.
   * Headers: `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Content-Disposition: attachment; filename="..."`.
-  * Sensitive audit: administrative downloads/views automatically log to `admin_document_access` (`ADMIN_DOCUMENT_DOWNLOAD`).
+  * Sensitive audit: administrative downloads/views automatically log append-only records to `admin_actions` (`ADMIN_DOCUMENT_DOWNLOAD`).
+  * Retention execution: `DocumentCleanupService` automated purge for expired rejected documents (>30 days) and account erasure.
   * Development invariant: dummy documents only.
 - [x] **TASK-403**: Backend Verification Specialist — Implement Owner Verification domain:
   * `POST /api/v1/owners/verification/submit`: validates at least one identity document is uploaded; transitions `verification_status` from `NOT_STARTED` / `MORE_INFORMATION_REQUIRED` to `SUBMITTED`.
@@ -194,7 +195,7 @@ bash scripts/test-slice-3.sh
 - [x] **TASK-406**: QA & Security Specialist — Automated Integration Test Suite (`scripts/test-slice-4.sh`):
   * Private doc Nginx block (404/403 directly on `/secure-docs/*`).
   * Document upload, magic byte check, owner/admin download.
-  * Sensitive admin document access audit verification (`admin_document_access`).
+  * Sensitive admin document access audit verification (`admin_actions`).
   * Non-owner document download rejection (403).
   * Concurrent admin decision collision test (409 Conflict).
   * Golden Invariant tests:

@@ -176,9 +176,9 @@ The PostgreSQL database comprises exactly **17 domain-normalized tables**. Rathe
 V1__auth_and_users.sql         ──► users, roles, user_roles, refresh_tokens
 V2__owner_profiles.sql         ──► owner_profiles
 V3__property_domain.sql        ──► properties, property_images, property_amenities
-V4__verification_documents.sql ──► documents, verification_requests
+V4__verification_documents.sql ──► documents, admin_actions
 V5__connections.sql            ──► contact_events, enquiries, visits, favorites
-V6__trust_and_operations.sql   ──► reports, notifications, admin_actions
+V6__trust_and_operations.sql   ──► verification_requests, reports, notifications
 ```
 
 ### The 17 Canonical Database Tables
@@ -198,7 +198,7 @@ V6__trust_and_operations.sql   ──► reports, notifications, admin_actions
 14. `favorites`: Saved listings bookmarked by registered users.
 15. `reports`: Fraud, scam, and broker reports filed against properties or users.
 16. `notifications`: In-app notification alerts with read/unread tracking.
-17. `admin_actions`: Append-only administrative audit records of all moderation actions with restricted access.
+17. `admin_actions`: Append-only administrative audit records of moderation decisions and sensitive document access.
 
 ### Entity Relationship & Traversal Chain
 ```text
@@ -261,7 +261,7 @@ Owner VERIFIED + Property APPROVED
 4. **Optimistic Concurrency / State-Conditional Admin Decisions**:
    * Admin actions must use state-conditional SQL updates (`WHERE id = :id AND status IN ('SUBMITTED', 'UNDER_REVIEW')`) to ensure two concurrent administrators never overwrite each other silently. If 0 rows are affected, a HTTP 409 Conflict is returned.
 5. **Sensitive Admin Document Audit**:
-   * Every administrative download or view of an owner's KYC document (`GET /api/v1/documents/{id}/download`) creates an immutable audit record in `admin_document_access`.
+   * Every administrative download or view of an owner's KYC document (`GET /api/v1/documents/{id}/download`) creates an append-only sensitive-document access audit record in `admin_actions`.
 
 
 ---
@@ -315,7 +315,7 @@ RentalCircle strictly isolates storage into two directories mounted via Docker p
 5. **Reject Executable Content**: Shell scripts, bytecode, PHP, or HTML tags masquerading as images/PDFs are rejected with HTTP 400.
 6. **Enforce Size Limits**: Max 10MB for photos, 20MB for documents, enforced at both Nginx and Spring Boot.
 7. **Generate Server Storage Filenames**: Random UUIDs prevent path traversal (`../`) and collisions.
-8. **Store Sensitive Docs Outside Nginx**: `secure_docs_data` is completely unmapped in Nginx.
+8. **Store Sensitive Docs Outside Nginx**: Private documents are not mapped into Nginx's static serving configuration (`secure_docs_data` is mounted exclusively to the Spring Boot backend container).
 9. **Authorize Every Private Download**: Access requires explicit ownership or admin role (`document.owner.user.id == currentUser.id || currentUser.hasRole('ADMIN')`).
 
 ---

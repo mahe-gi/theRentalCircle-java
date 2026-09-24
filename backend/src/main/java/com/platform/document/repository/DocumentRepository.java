@@ -17,4 +17,6 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     Optional<Document> findByIdAndOwnerProfileUserId(Long id, Long userId);
 
     long countByOwnerProfileUserId(Long userId);
+
+    List<Document> findByStatusAndUpdatedAtBefore(com.platform.document.entity.DocumentStatus status, java.time.Instant cutoff);
 }

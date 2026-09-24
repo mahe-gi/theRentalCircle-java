@@ -13,12 +13,13 @@ CREATE TABLE documents (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE admin_document_access (
+CREATE TABLE admin_actions (
     id BIGSERIAL PRIMARY KEY,
     admin_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    document_id BIGINT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-    owner_profile_id BIGINT NOT NULL REFERENCES owner_profiles(id) ON DELETE CASCADE,
-    action VARCHAR(32) NOT NULL DEFAULT 'ADMIN_DOCUMENT_DOWNLOAD',
+    action VARCHAR(64) NOT NULL,
+    target_type VARCHAR(32) NOT NULL,
+    target_id BIGINT NOT NULL,
+    details TEXT,
     ip_address VARCHAR(45),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -43,5 +44,6 @@ CREATE INDEX idx_documents_owner_profile_id ON documents(owner_profile_id);
 CREATE INDEX idx_documents_property_id ON documents(property_id);
 CREATE INDEX idx_documents_status ON documents(status);
 CREATE INDEX idx_owner_profiles_verification_status ON owner_profiles(verification_status);
-CREATE INDEX idx_admin_document_access_admin_id ON admin_document_access(admin_id);
-CREATE INDEX idx_admin_document_access_document_id ON admin_document_access(document_id);
+CREATE INDEX idx_admin_actions_admin_id ON admin_actions(admin_id);
+CREATE INDEX idx_admin_actions_target ON admin_actions(target_type, target_id);
+CREATE INDEX idx_admin_actions_created_at ON admin_actions(created_at);

@@ -570,7 +570,7 @@ export default function AdminOwnersPage() {
                     <span>Confidential Admin Access — Access Logged</span>
                   </div>
                   <p className="text-[11px] text-charcoal-light leading-relaxed">
-                    All document views and downloads are permanently recorded in the immutable audit table (<code>admin_document_access</code>) with your administrator ID, timestamp, and client IP address. Do not share or store documents on unauthorized devices.
+                    All document views and downloads are recorded as append-only audit records in the administrative actions log (<code>admin_actions</code>) with your administrator ID, timestamp, and client IP address. Do not share or store documents on unauthorized devices.
                   </p>
                 </div>
 

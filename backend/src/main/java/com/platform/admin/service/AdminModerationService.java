@@ -1,5 +1,7 @@
 package com.platform.admin.service;
 
+import com.platform.admin.entity.AdminAction;
+import com.platform.admin.repository.AdminActionRepository;
 import com.platform.common.exception.ConflictException;
 import com.platform.common.exception.ResourceNotFoundException;
 import com.platform.owner.dto.OwnerProfileResponse;
@@ -29,6 +31,7 @@ public class AdminModerationService {
 
     private final OwnerProfileRepository ownerProfileRepository;
     private final PropertyRepository propertyRepository;
+    private final AdminActionRepository adminActionRepository;
 
     /**
      * Common engine: attemptTransitionToLive(Property property)
@@ -61,6 +64,14 @@ public class AdminModerationService {
             throw new ConflictException("Owner verification has already been processed or is not in review");
         }
 
+        adminActionRepository.save(AdminAction.builder()
+                .admin(admin)
+                .action("VERIFY_OWNER")
+                .targetType("OWNER")
+                .targetId(ownerProfileId)
+                .details(remarks)
+                .build());
+
         OwnerProfile ownerProfile = ownerProfileRepository.findById(ownerProfileId)
                 .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found with ID: " + ownerProfileId));
 
@@ -81,6 +92,14 @@ public class AdminModerationService {
         if (rowsAffected == 0) {
             throw new ConflictException("Owner verification has already been processed or is not in review");
         }
+
+        adminActionRepository.save(AdminAction.builder()
+                .admin(admin)
+                .action("REJECT_OWNER")
+                .targetType("OWNER")
+                .targetId(ownerProfileId)
+                .details(remarks)
+                .build());
 
         List<Property> liveProperties = propertyRepository.findByOwnerProfileIdAndStatus(ownerProfileId, PropertyStatus.LIVE);
         for (Property property : liveProperties) {
@@ -104,6 +123,14 @@ public class AdminModerationService {
             throw new ConflictException("Owner verification has already been processed or is not in review");
         }
 
+        adminActionRepository.save(AdminAction.builder()
+                .admin(admin)
+                .action("REQUEST_MORE_INFO_OWNER")
+                .targetType("OWNER")
+                .targetId(ownerProfileId)
+                .details(remarks)
+                .build());
+
         OwnerProfile ownerProfile = ownerProfileRepository.findById(ownerProfileId)
                 .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found with ID: " + ownerProfileId));
         return OwnerProfileResponse.fromEntity(ownerProfile);
@@ -117,6 +144,14 @@ public class AdminModerationService {
         if (rowsAffected == 0) {
             throw new ConflictException("Property moderation has already been processed or is not in review");
         }
+
+        adminActionRepository.save(AdminAction.builder()
+                .admin(admin)
+                .action("APPROVE_PROPERTY")
+                .targetType("PROPERTY")
+                .targetId(propertyId)
+                .details(remarks)
+                .build());
 
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found with ID: " + propertyId));
@@ -138,6 +173,14 @@ public class AdminModerationService {
             throw new ConflictException("Property moderation has already been processed or is not in review");
         }
 
+        adminActionRepository.save(AdminAction.builder()
+                .admin(admin)
+                .action("REJECT_PROPERTY")
+                .targetType("PROPERTY")
+                .targetId(propertyId)
+                .details(remarks)
+                .build());
+
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found with ID: " + propertyId));
 
@@ -156,6 +199,14 @@ public class AdminModerationService {
         if (rowsAffected == 0) {
             throw new ConflictException("Property moderation has already been processed or is not in review");
         }
+
+        adminActionRepository.save(AdminAction.builder()
+                .admin(admin)
+                .action("REQUEST_MORE_INFO_PROPERTY")
+                .targetType("PROPERTY")
+                .targetId(propertyId)
+                .details(remarks)
+                .build());
 
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found with ID: " + propertyId));

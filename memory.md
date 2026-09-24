@@ -66,15 +66,16 @@
 - Verification Evidence:
   1. Database Migration:
      * `V4__verification_documents.sql` executed cleanly against PostgreSQL 17.11.
-     * Tables `documents` and `admin_document_access` created with explicit foreign keys.
+     * Tables `documents` and `admin_actions` created with explicit foreign keys. Canonical 17-table schema strictly preserved.
      * `owner_profiles` expanded with `verification_status` ('NOT_STARTED', 'SUBMITTED', 'UNDER_REVIEW', 'MORE_INFORMATION_REQUIRED', 'VERIFIED', 'REJECTED'), `verified_by`, `verified_at`, `admin_remarks` (zero plaintext PAN/Aadhaar columns).
      * `properties` status constraint expanded to include 'MORE_INFORMATION_REQUIRED', 'UNDER_REVIEW', 'APPROVED', 'LIVE', 'REJECTED', 'SUSPENDED'; added `reviewed_by`, `reviewed_at`, `admin_remarks`.
      * Partial unique index `uq_property_primary_image` active on `property_images(property_id) WHERE is_primary = TRUE`.
   2. Private Document Storage Subsystem:
-     * Storage volume `/var/app/secure-docs/` strictly unmapped in Nginx (confirmed via 404 on direct HTTP requests).
+     * Storage volume `/var/app/secure-docs/` is not mapped into Nginx's static serving configuration (confirmed via 404 on direct HTTP requests).
      * 20MB file limit and magic byte inspection (%PDF, JPEG, PNG) strictly enforced.
      * Streaming download via `GET /api/v1/documents/{id}/download` enforcing owner or admin access, with `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, and `Content-Disposition: attachment`.
-     * Sensitive administrative document downloads automatically record persistent audit entries in `admin_document_access`.
+     * Sensitive administrative document downloads automatically record append-only audit entries in `admin_actions`.
+     * Executable retention cleanup service (`DocumentCleanupService`) implemented for 30-day purge of rejected documents and complete erasure for account deletion.
   3. Golden Invariant & Deterministic LIVE State Machine:
      * Common transition engine: `attemptTransitionToLive(Property)` strictly enforces that a listing transitions to `LIVE` only when `owner.verificationStatus == VERIFIED AND property.status == APPROVED`.
      * Trigger A verified: Approving an unverified owner's property sets status to `APPROVED`, NOT `LIVE`. Later verifying the owner automatically transitions the property from `APPROVED ➔ LIVE`.

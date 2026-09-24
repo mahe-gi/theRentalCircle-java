@@ -3,11 +3,11 @@ package com.platform.document.service;
 import com.platform.common.exception.ResourceNotFoundException;
 import com.platform.document.dto.DocumentResponse;
 import com.platform.document.dto.DownloadResource;
-import com.platform.document.entity.AdminDocumentAccess;
+import com.platform.admin.entity.AdminAction;
+import com.platform.admin.repository.AdminActionRepository;
 import com.platform.document.entity.Document;
 import com.platform.document.entity.DocumentStatus;
 import com.platform.document.entity.DocumentType;
-import com.platform.document.repository.AdminDocumentAccessRepository;
 import com.platform.document.repository.DocumentRepository;
 import com.platform.owner.entity.OwnerProfile;
 import com.platform.owner.repository.OwnerProfileRepository;
@@ -54,7 +54,7 @@ public class DocumentStorageService {
     private String documentDir;
 
     private final DocumentRepository documentRepository;
-    private final AdminDocumentAccessRepository adminDocumentAccessRepository;
+    private final AdminActionRepository adminActionRepository;
     private final OwnerProfileRepository ownerProfileRepository;
     private final PropertyRepository propertyRepository;
     private final UserRepository userRepository;
@@ -192,14 +192,15 @@ public class DocumentStorageService {
 
         if (isAdmin) {
             User adminUser = userRepository.findById(currentUserId).orElse(null);
-            AdminDocumentAccess auditAccess = AdminDocumentAccess.builder()
+            AdminAction auditAction = AdminAction.builder()
                     .admin(adminUser)
-                    .document(document)
-                    .ownerProfile(document.getOwnerProfile())
                     .action("ADMIN_DOCUMENT_DOWNLOAD")
+                    .targetType("DOCUMENT")
+                    .targetId(document.getId())
+                    .details("Downloaded KYC document for owner profile " + (document.getOwnerProfile() != null ? document.getOwnerProfile().getId() : "null"))
                     .ipAddress(clientIp)
                     .build();
-            adminDocumentAccessRepository.save(auditAccess);
+            adminActionRepository.save(auditAction);
         }
 
         Path targetPath = resolvePhysicalPath(document.getStorageKey());

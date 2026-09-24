@@ -3,11 +3,11 @@ package com.platform.document.service;
 import com.platform.common.exception.ResourceNotFoundException;
 import com.platform.document.dto.DocumentResponse;
 import com.platform.document.dto.DownloadResource;
-import com.platform.document.entity.AdminDocumentAccess;
+import com.platform.admin.entity.AdminAction;
+import com.platform.admin.repository.AdminActionRepository;
 import com.platform.document.entity.Document;
 import com.platform.document.entity.DocumentStatus;
 import com.platform.document.entity.DocumentType;
-import com.platform.document.repository.AdminDocumentAccessRepository;
 import com.platform.document.repository.DocumentRepository;
 import com.platform.owner.entity.OwnerProfile;
 import com.platform.owner.entity.OwnershipType;
@@ -49,7 +49,7 @@ class DocumentStorageServiceTest {
     private DocumentRepository documentRepository;
 
     @Mock
-    private AdminDocumentAccessRepository adminDocumentAccessRepository;
+    private AdminActionRepository adminActionRepository;
 
     @Mock
     private OwnerProfileRepository ownerProfileRepository;
@@ -385,7 +385,7 @@ class DocumentStorageServiceTest {
         assertEquals("aadhaar.pdf", result.originalFilename());
         assertTrue(result.resource().exists());
 
-        verify(adminDocumentAccessRepository, never()).save(any(AdminDocumentAccess.class));
+        verify(adminActionRepository, never()).save(any(AdminAction.class));
     }
 
     @Test
@@ -415,13 +415,13 @@ class DocumentStorageServiceTest {
         assertNotNull(result);
         assertEquals("deed.pdf", result.originalFilename());
 
-        ArgumentCaptor<AdminDocumentAccess> captor = ArgumentCaptor.forClass(AdminDocumentAccess.class);
-        verify(adminDocumentAccessRepository, times(1)).save(captor.capture());
+        ArgumentCaptor<AdminAction> captor = ArgumentCaptor.forClass(AdminAction.class);
+        verify(adminActionRepository, times(1)).save(captor.capture());
 
-        AdminDocumentAccess audit = captor.getValue();
+        AdminAction audit = captor.getValue();
         assertEquals(adminUser, audit.getAdmin());
-        assertEquals(doc, audit.getDocument());
-        assertEquals(ownerProfile, audit.getOwnerProfile());
+        assertEquals("DOCUMENT", audit.getTargetType());
+        assertEquals(402L, audit.getTargetId());
         assertEquals("ADMIN_DOCUMENT_DOWNLOAD", audit.getAction());
         assertEquals("10.0.0.5", audit.getIpAddress());
     }
@@ -442,7 +442,7 @@ class DocumentStorageServiceTest {
                 documentStorageService.getDownloadResource(403L, 2L, false, "1.2.3.4")
         );
 
-        verify(adminDocumentAccessRepository, never()).save(any());
+        verify(adminActionRepository, never()).save(any());
     }
 
     @Test

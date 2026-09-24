@@ -10,10 +10,8 @@
 # 4. Document Upload & Magic-Byte Validation: Valid PDF (201) vs Spoofed file (400).
 # 5. Document Access Control & Audit:
 #    - Non-owning owner download blocked (403 Forbidden).
-#    - Owner downloads own document (200 OK, Cache-Control: no-store, Content-Disposition: attachment).
 #    - Admin downloads owner's document (200 OK).
-#    - Database audit trail verified in admin_document_access (admin_id, document_id, ADMIN_DOCUMENT_DOWNLOAD).
-# 6. Owner Verification Submission:
+#    - Database audit trail verified in admin_actions (admin_id, target_id, ADMIN_DOCUMENT_DOWNLOAD).
 #    - Submit without documents -> 400 Bad Request.
 #    - Submit with documents -> 200 OK, verificationStatus='SUBMITTED'.
 # 7. Golden Invariant & Deterministic LIVE State Machine:
@@ -423,14 +421,14 @@ if [ -n "$DOC1_ID" ]; then
         fail_test "Admin Document Download" "Expected HTTP 200 OK, got HTTP ${HTTP_CODE_ADMIN_DL}"
     fi
 
-    # Database verification: query admin_document_access in PostgreSQL
-    SQL_AUDIT_CHECK="SELECT COUNT(*) FROM admin_document_access WHERE document_id = ${DOC1_ID} AND action = 'ADMIN_DOCUMENT_DOWNLOAD' AND admin_id = ${ADMIN_USER_ID};"
+    # Database verification: query admin_actions in PostgreSQL
+    SQL_AUDIT_CHECK="SELECT COUNT(*) FROM admin_actions WHERE target_type = 'DOCUMENT' AND target_id = ${DOC1_ID} AND action = 'ADMIN_DOCUMENT_DOWNLOAD' AND admin_id = ${ADMIN_USER_ID};"
     AUDIT_COUNT=$(execute_db_sql "$SQL_AUDIT_CHECK" | tr -d '[:space:]')
 
     if [ -n "$AUDIT_COUNT" ] && [ "$AUDIT_COUNT" -ge 1 ] 2>/dev/null; then
-        pass_test "Admin Access Audit Trail" "Verified audit record in admin_document_access (admin_id=${ADMIN_USER_ID}, doc_id=${DOC1_ID}, count=${AUDIT_COUNT})"
+        pass_test "Admin Access Audit Trail" "Verified audit record in admin_actions (admin_id=${ADMIN_USER_ID}, target_id=${DOC1_ID}, count=${AUDIT_COUNT})"
     else
-        fail_test "Admin Access Audit Trail" "Expected at least 1 audit record in admin_document_access, found '${AUDIT_COUNT}'"
+        fail_test "Admin Access Audit Trail" "Expected at least 1 audit record in admin_actions, found '${AUDIT_COUNT}'"
     fi
 else
     fail_test "Document Access Tests" "Skipped due to prior document upload failure"
