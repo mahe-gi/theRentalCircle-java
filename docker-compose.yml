@@ -1,10 +1,12 @@
+name: platform
+
 services:
   postgres:
     image: postgres:17.11-alpine
     container_name: platform-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-dev_rentalcircle}
+      POSTGRES_DB: ${POSTGRES_DB:-dev_platform}
       POSTGRES_USER: ${POSTGRES_USER:-dev_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_insecure_password_replace_in_prod}
     ports:
@@ -14,7 +16,7 @@ services:
     networks:
       - platform-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dev_user} -d ${POSTGRES_DB:-dev_rentalcircle}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dev_user} -d ${POSTGRES_DB:-dev_platform}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -23,11 +25,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: platform-backend:latest
     container_name: platform-backend
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-dev_rentalcircle}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-dev_platform}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-dev_user}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-dev_insecure_password_replace_in_prod}
       JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_key_minimum_32_characters_for_local_testing_only!}
@@ -46,7 +49,7 @@ services:
     networks:
       - platform-network
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/api/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/api/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -56,6 +59,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    image: platform-frontend:latest
     container_name: platform-frontend
     restart: unless-stopped
     environment:
@@ -69,7 +73,7 @@ services:
     networks:
       - platform-network
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -79,6 +83,7 @@ services:
     build:
       context: ./nginx
       dockerfile: Dockerfile
+    image: platform-nginx:latest
     container_name: platform-nginx
     restart: unless-stopped
     ports:

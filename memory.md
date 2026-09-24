@@ -59,25 +59,36 @@
 ## 4. Active Checkpoint Log
 
 ```text
-[CHECKPOINT-20260924-06]
-- Timestamp: 2026-09-24T14:27:00+05:30
-- Phase: SLICE 1 — Foundation (Runnable Skeleton & Environment) COMPLETED
-- Status: VERIFIED & OPERATIONAL
-- Verification Evidence:
-  1. Docker Stack:
-     * `platform-postgres` (PostgreSQL 17.11): Healthy, port 5432
-     * `platform-backend` (Spring Boot 4.1.1 on Java 21 LTS): Healthy, port 8080
-     * `platform-frontend` (Next.js 16.3.6 standalone on Node 24): Healthy, port 3000
-     * `platform-nginx` (Nginx 1.30.5): Healthy, port 80
-  2. Database Migrations:
-     * Flyway executed `V0__init.sql` automatically via `FlywayConfig` on startup.
-     * `platform_system_info` table initialized: `1 | 2026-09-24 08:56:30.582712+00 | 1.0.0-slice1`
-     * `flyway_schema_history` records `V0__init.sql` applied cleanly.
-  3. Network Ingress & Health Checks:
+[CHECKPOINT-20260924-07]
+- Timestamp: 2026-09-24T14:43:00+05:30
+- Phase: SLICE 1 — Foundation Audit, Cleanup & Zero-Brand Locking COMPLETED
+- Status: 100% CLEAN & VERIFIED
+- Audit Resolutions Verified:
+  1. Flyway Auto-Configuration Restored:
+     * Added official `org.springframework.boot:spring-boot-starter-flyway` to `pom.xml`.
+     * Deleted suspicious `FlywayConfig.java`. Spring Boot 4's native `FlywayMigrationInitializer` and `FlywayAutoConfiguration` run cleanly out of the box.
+  2. 17-Domain-Table Invariant Preserved:
+     * Deleted ephemeral `V0__init.sql` and `platform_system_info`.
+     * Zero spurious application tables in database. Schema starts cleanly with V1–V6.
+     * `flyway_schema_history` table initialized and ready for `V1__auth_and_users.sql`.
+  3. Technical Identifiers Brand-Free:
+     * Docker compose project set to `name: platform`.
+     * Docker image tags locked to `platform-backend:latest`, `platform-frontend:latest`, `platform-nginx:latest`.
+     * Database name locked to `dev_platform` across `.env`, `docker-compose.yml`, `application.yml`, and `application-docker.yml`.
+     * Robots.txt header updated to `# Platform Robots`.
+  4. Git Repository Integrity:
+     * Confirmed single clean root commit `a605660`.
+  5. Genuine Clean Rebuild (`docker compose down -v` -> `docker compose up -d --build`):
+     * `platform-postgres` (PostgreSQL 17.11): Healthy, database `dev_platform`.
+     * `platform-backend` (Spring Boot 4.1.1 on Java 21 LTS): Healthy, port 8080.
+     * `platform-frontend` (Next.js 16.3.6 standalone on Node 24): Healthy, port 3000.
+     * `platform-nginx` (Nginx 1.30.5): Healthy, port 80.
      * `curl -i http://localhost/api/health` -> HTTP 200 OK
-       `{"success":true,"message":"Platform API is healthy and operational","data":{"framework":"Spring Boot 4.1.1","runtime":"Java 21 LTS","status":"UP"}}`
-     * `curl -s -o /dev/null -w "%{http_code}\n" http://localhost/` -> HTTP 200 OK (Next.js SSR Landing Page rendered through Nginx proxy)
-- Next Action: Ready to begin Slice 2 (Authentication & User Identity) using minimum 5+ subagents.
+     * `curl -s -o /dev/null -w "%{http_code}\n" http://localhost/` -> HTTP 200 OK
+     * `docker exec platform-postgres psql -U dev_user -d dev_platform -c "\dt"` -> Only `flyway_schema_history` (0 application tables).
+  6. Subagent Model Locked for Slice 2:
+     * Parallel specialists + sequential integration (DB specialist, Backend Auth specialist, Session specialist, Frontend specialist, QA specialist) with strict file ownership. Single lead integrator merges, tests, and reviews.
+- Next Action: Slice 1 is 100% frozen. Ready to plan and execute Slice 2 contract.
 ```
 
 ---

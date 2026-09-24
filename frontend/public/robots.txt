@@ -1,4 +1,4 @@
-# RentalCircle Robots
+# Platform Robots
 User-agent: *
 Allow: /
 Disallow: /admin/
