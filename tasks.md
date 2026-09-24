@@ -109,33 +109,46 @@ bash scripts/test-slice-2.sh
 ---
 
 ### SLICE 3 — Owner Onboarding & Property Creation
-* **Product Capability**: A registered user can declare themselves an owner (or authorized representative), access the Owner Portal, create a property listing in `DRAFT` status, edit specifications, upload photos, and submit the listing for moderation.
+* **Product Capability**: A registered user can declare themselves an owner (TITLE_OWNER or AUTHORIZED_REPRESENTATIVE), access the Owner Portal, create a property listing in `DRAFT` status, edit specifications (including district), upload photos with orphan-file cleanup protection, and submit the listing for moderation (`DRAFT → SUBMITTED`).
 * **Why We Need It**: Owners must be able to list residential or commercial properties easily for free without broker friction.
-* **User Journey Unlocked**: Owner onboarding, multi-step property listing wizard, photo upload.
+* **User Journey Unlocked**: Owner onboarding declaration, multi-step property listing wizard, photo upload with preview, draft submission.
 
 #### Tasks:
-- [ ] **TASK-301**: Write Flyway migrations `V2__owner_profiles.sql` (`owner_profiles`) and `V4__property_domain.sql` (`properties`, `property_images`, `property_amenities`).
-- [ ] **TASK-302**: Implement `OwnerController`:
-  * `POST /api/v1/owners/register` (Adds `ROLE_OWNER`, creates `owner_profiles` record with status `NOT_STARTED`).
-  * `GET /api/v1/owners/profile` (Returns current owner profile and verification status).
-- [ ] **TASK-303**: Implement `PropertyService` and `PropertyController`:
+- [x] **TASK-301**: Write Flyway migrations:
+  * `V2__owner_profiles.sql` (`owner_profiles` with `user_id`, `ownership_type` [TITLE_OWNER, AUTHORIZED_REPRESENTATIVE], `company_name`, `declaration_accepted`, `declaration_accepted_at`, `declaration_version`).
+  * `V3__property_domain.sql` (`properties` with `owner_profile_id`, `district`, status restricted to `DRAFT` and `SUBMITTED`, `property_images` with `storage_key`, `property_amenities`).
+- [x] **TASK-302**: Implement `OwnerProfile` domain & `OwnerController`:
+  * `POST /api/v1/owners/register` (Requires authenticated user, records `ownership_type`, sets `declaration_accepted=true`, `declaration_version='v1.0'`, adds `ROLE_OWNER`).
+  * `GET /api/v1/owners/profile` (Returns current user's owner profile and declaration details).
+- [x] **TASK-303**: Implement `PropertyService` and `PropertyController`:
+  * Enforce owner filtering at query boundary (e.g. `findByIdAndOwnerProfileUserId(propertyId, userId)`).
   * `POST /api/v1/properties` (Creates property in `DRAFT` status; owner only).
-  * `PUT /api/v1/properties/{id}` (Updates draft property; validates ownership chain: `property.ownerProfile.user.id == currentUser.id`).
-  * `PUT /api/v1/properties/{id}/submit` (Transitions `DRAFT → SUBMITTED`; validates required fields and coordinates).
-  * `GET /api/v1/properties/my` (Lists owner's properties with status filter).
-- [ ] **TASK-304**: Implement public photo upload service (`PropertyImageService`):
-  * Stores images in `/var/app/uploads/properties/` with UUID filenames and magic-byte validation.
-  * Served directly by Nginx at `/uploads/*`.
-- [ ] **TASK-305**: Frontend Owner Portal UI:
-  * Owner declaration flow (`app/owner/become-owner/page.tsx`).
-  * Multi-step property listing wizard (`app/owner/properties/new/page.tsx`).
+  * `GET /api/v1/properties/{id}` (Returns property details; authenticated owner for own property only).
+  * `PUT /api/v1/properties/{id}` (Updates draft property specs; only allowed when status is `DRAFT`).
+  * `DELETE /api/v1/properties/{id}` (Deletes draft property and associated physical image files).
+  * `PUT /api/v1/properties/{id}/submit` (Transitions `DRAFT → SUBMITTED`; validates required fields and at least 1 image; locks property from further owner edits).
+  * `GET /api/v1/properties/my` (Lists owner's properties with pagination and optional status filter).
+- [x] **TASK-304**: Implement public photo upload service (`PropertyImageService`):
+  * Stores images in `/var/app/uploads/properties/` with UUID storage key (`properties/<uuid>.<ext>`).
+  * Validates size (10MB limit), MIME type, and magic bytes (JPEG, PNG, WebP).
+  * Enforces orphan-file cleanup rule: if DB insert fails after disk write, immediately delete physical file; on image/property deletion, remove physical file from disk.
+  * `POST /api/v1/properties/{id}/images` (Uploads image, returns image metadata with derived `/uploads/*` URL).
+  * `DELETE /api/v1/properties/{id}/images/{imageId}` (Deletes image record and file).
+  * `PUT /api/v1/properties/{id}/images/{imageId}/primary` (Sets image as primary cover).
+- [x] **TASK-305**: Frontend Owner Portal UI:
+  * Owner declaration flow (`app/owner/become-owner/page.tsx` with TITLE_OWNER / AUTHORIZED_REPRESENTATIVE selection and declaration consent).
+  * Multi-step property listing wizard (`app/owner/properties/new/page.tsx` covering basic specs, pricing, address with district, amenities, and photo upload).
   * Owner properties management table (`app/owner/properties/page.tsx`).
+  * Owner dashboard (`app/owner/dashboard/page.tsx`) with quick stats and CTAs.
+  * Shared responsive `navbar.tsx` with dynamic role-aware "List Property" CTA.
+- [x] **TASK-306**: Automated Integration Test Suite (`scripts/test-slice-3.sh`):
+  * End-to-end verification of registration, owner onboarding, draft creation, image upload, orphan cleanup, update, IDOR unauthorized access rejection (403/404), draft submission, and post-submission immutability.
 
 #### Verification:
 ```bash
-cd backend && ./mvnw test -Dtest=PropertyLifecycleTest,PropertyImageServiceTest
+bash scripts/test-slice-3.sh
 ```
-*Criteria*: Owner can register, draft a property, upload photos, and submit for review. Property cannot be edited by other users.
+*Criteria*: All Slice 3 automated integration tests pass (100%). Owner declaration, property draft, photo upload, and submission lifecycle verified.
 
 ---
 
@@ -145,7 +158,7 @@ cd backend && ./mvnw test -Dtest=PropertyLifecycleTest,PropertyImageServiceTest
 * **User Journey Unlocked**: Owner KYC submission, Admin review queues, Property transitioning to `LIVE`.
 
 #### Tasks:
-- [ ] **TASK-401**: Write Flyway migration `V3__verification_documents.sql` (`documents`, `verification_requests`).
+- [ ] **TASK-401**: Write Flyway migration `V4__verification_documents.sql` (`documents`, `verification_requests`).
 - [ ] **TASK-402**: Implement private document storage service (`FileStorageService`):
   * Stores private docs in `/var/app/secure-docs/` (unmapped in Nginx).
   * Enforces the 9 file security rules (never trust client filename/MIME, magic-byte check, whitelist, UUID filenames).

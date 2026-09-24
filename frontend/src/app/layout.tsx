@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AuthProvider } from "@/lib/auth-context";
+import { Providers } from "@/components/providers";
 
 export const metadata: Metadata = {
   title: "RentalCircle — Zero-Brokerage Verified Real-Estate Marketplace",
@@ -15,8 +15,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-sand text-charcoal antialiased">
-        <AuthProvider>{children}</AuthProvider>
+      <body className="min-h-screen bg-sand text-charcoal font-sans antialiased">
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

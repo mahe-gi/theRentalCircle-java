@@ -47,8 +47,8 @@
 |---|---|---|---|
 | **Slice 1: Foundation** | Runnable Skeleton & Docker Environment | `[x] COMPLETED` | All 4 containers healthy, Flyway ran, endpoints verified. |
 | **Slice 2: Authentication** | User Registration, JWT & Refresh Session | `[x] COMPLETED & FROZEN` | 16/16 integration tests passed (registration, JWT, rotation, reuse-revocation, concurrent refresh race condition, suspension, logout). |
-| **Slice 3: Owner + Property** | Owner Onboarding, Draft Wizard & Photos | `[ ] TODO` | V2 & V4 migrations, property CRUD, photo uploads. |
-| **Slice 4: Trust Layer** | Verification Documents & Admin Moderation | `[ ] TODO` | V3 migration, secure doc storage, LIVE eligibility rule. |
+| **Slice 3: Owner + Property** | Owner Onboarding, Draft Wizard & Photos | `[x] COMPLETED & FROZEN` | 20/20 integration tests passed (declaration, draft CRUD, district, photo upload, magic bytes, orphan-cleanup, IDOR guard, submit lock). |
+| **Slice 4: Trust Layer** | Verification Documents & Admin Moderation | `[ ] TODO` | V4 migration, secure doc storage, LIVE eligibility rule. |
 | **Slice 5: Discovery** | Search, Filters, Map & SSR Details | `[ ] TODO` | JPA search specifications, Leaflet map, details page. |
 | **Slice 6: Connection** | WhatsApp, Enquiries, Visits & Favorites | `[ ] TODO` | V5 migration, wa.me deep links, visit scheduling. |
 | **Slice 7: Trust & Operations**| Reports, Moderation, In-App Notifications | `[ ] TODO` | V6 migration, reporting engine, admin audit logs. |
@@ -57,6 +57,39 @@
 ---
 
 ## 4. Active Checkpoint Log
+
+```text
+[CHECKPOINT-20260924-10]
+- Timestamp: 2026-09-24T17:35:00+05:30
+- Phase: SLICE 3 — Owner Onboarding & Property Creation COMPLETED
+- Status: 100% VERIFIED & FROZEN
+- Verification Evidence:
+  1. Database Migrations (PostgreSQL 17.11):
+     * `V2__owner_profiles.sql`: clean schema without KYC/admin fields (ownership_type, company_name, declaration_accepted, declaration_accepted_at, declaration_version).
+     * `V3__property_domain.sql`: `properties` with `district`, check constraint status IN ('DRAFT', 'SUBMITTED'); `property_images` with unique `storage_key`; `property_amenities`.
+  2. Owner Onboarding Domain:
+     * `POST /api/v1/owners/register`: validates declaration acceptance, assigns `ROLE_OWNER`, prevents duplicate declaration.
+     * `GET /api/v1/owners/profile`: secured with `hasRole('OWNER')`.
+  3. Property Draft Lifecycle & IDOR Protection:
+     * `POST /api/v1/properties`: creates DRAFT property listing.
+     * Strict query-boundary isolation: `findByIdAndOwnerProfileUserId` prevents IDOR across owners.
+     * `PUT /api/v1/properties/{id}`: updates draft specs and amenities.
+     * `PUT /api/v1/properties/{id}/submit`: transitions status DRAFT -> SUBMITTED only if required fields and photos exist; permanently locks property from further owner edits or deletions.
+  4. Public Photo Upload Subsystem:
+     * Validates 10MB limit and magic bytes (JPEG: FF D8 FF, PNG: 89 50 4E 47, WebP: RIFF...WEBP).
+     * Serves statically through Nginx `/uploads/*` alias.
+     * Orphan-file cleanup: catches DB errors and deletes physical file immediately; deleting an image removes both DB row and disk file.
+  5. Frontend UI (Next.js 16 App Router):
+     * `/owner/become-owner`: legal declaration and ownership type selector.
+     * `/owner/dashboard`: owner stats and quick links.
+     * `/owner/properties/new`: 5-step stepper creation wizard.
+     * `/owner/properties`: owner listings management table.
+     * Fully compiled with zero TypeScript errors (`npx tsc --noEmit`).
+  6. Automated Test Suites:
+     * `scripts/test-slice-3.sh`: 20/20 checks passed (100%).
+     * `scripts/test-slice-2.sh`: 16/16 checks passed (100% - zero regressions).
+- Next Action: Slice 4 Planning & Verification/Moderation Architecture.
+```
 
 ```text
 [CHECKPOINT-20260924-09]

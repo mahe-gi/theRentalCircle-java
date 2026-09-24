@@ -26,6 +26,17 @@ const config: Config = {
           DEFAULT: "#C27D38",
           hover: "#A8692B",
         },
+        amber: {
+          DEFAULT: "#C27D38",
+          hover: "#A8692B",
+        },
+        cream: {
+          DEFAULT: "#FBF9F5",
+        },
+        slate: {
+          dark: "#111827",
+          900: "#111827",
+        },
       },
       fontFamily: {
         serif: ["var(--font-serif)", "serif"],

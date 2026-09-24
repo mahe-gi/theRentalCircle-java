@@ -18,6 +18,10 @@ spring:
       hibernate:
         format_sql: false
     open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 15MB
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -28,6 +32,8 @@ app:
     secret: ${JWT_SECRET:dev_jwt_secret_key_minimum_32_characters_for_local_testing_only!}
     expiration-ms: ${JWT_EXPIRATION_MS:900000}
     refresh-expiration-ms: ${REFRESH_TOKEN_EXPIRATION_MS:604800000}
+  upload:
+    dir: ${APP_UPLOAD_DIR:/var/app/uploads/properties}
   storage:
     upload-dir: ${FILE_UPLOAD_DIR:/var/app/uploads}
     secure-docs-dir: ${FILE_SECURE_DOCS_DIR:/var/app/secure-docs}

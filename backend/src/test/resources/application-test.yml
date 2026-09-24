@@ -8,3 +8,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none
+
+app:
+  upload:
+    dir: target/test-uploads/properties

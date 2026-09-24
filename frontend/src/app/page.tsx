@@ -1,33 +1,10 @@
 import React from "react";
+import { Navbar } from "@/components/navbar";
 
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-[#FBF9F5] text-[#1A1D20]">
-      {/* Navigation Header */}
-      <header className="border-b border-[#E8E4DD] bg-white/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <span className="text-2xl font-bold tracking-tight text-[#1B4D3E]">
-              Rental<span className="text-[#C27D38]">Circle</span>
-            </span>
-            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#E8F0EC] text-[#1B4D3E]">
-              Zero Brokerage
-            </span>
-          </div>
-          <nav className="flex items-center space-x-6 text-sm font-medium">
-            <a href="#discovery" className="hover:text-[#1B4D3E] transition-colors">
-              Discovery
-            </a>
-            <a href="#trust" className="hover:text-[#1B4D3E] transition-colors">
-              Trust Shield
-            </a>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium bg-[#1B4D3E]/10 text-[#1B4D3E]">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Platform Active
-            </span>
-          </nav>
-        </div>
-      </header>
+      <Navbar />
 
       {/* Hero Section */}
       <section className="relative px-4 pt-16 pb-20 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">

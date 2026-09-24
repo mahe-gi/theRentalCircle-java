@@ -175,8 +175,8 @@ The PostgreSQL database comprises exactly **17 domain-normalized tables**. Rathe
 ```text
 V1__auth_and_users.sql         ──► users, roles, user_roles, refresh_tokens
 V2__owner_profiles.sql         ──► owner_profiles
-V3__verification_documents.sql ──► documents, verification_requests
-V4__property_domain.sql        ──► properties, property_images, property_amenities
+V3__property_domain.sql        ──► properties, property_images, property_amenities
+V4__verification_documents.sql ──► documents, verification_requests
 V5__connections.sql            ──► contact_events, enquiries, visits, favorites
 V6__trust_and_operations.sql   ──► reports, notifications, admin_actions
 ```
