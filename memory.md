@@ -48,7 +48,7 @@
 | **Slice 1: Foundation** | Runnable Skeleton & Docker Environment | `[x] COMPLETED` | All 4 containers healthy, Flyway ran, endpoints verified. |
 | **Slice 2: Authentication** | User Registration, JWT & Refresh Session | `[x] COMPLETED & FROZEN` | 16/16 integration tests passed (registration, JWT, rotation, reuse-revocation, concurrent refresh race condition, suspension, logout). |
 | **Slice 3: Owner + Property** | Owner Onboarding, Draft Wizard & Photos | `[x] COMPLETED & FROZEN` | 20/20 integration tests passed (declaration, draft CRUD, district, photo upload, magic bytes, orphan-cleanup, IDOR guard, submit lock). |
-| **Slice 4: Trust Layer** | Verification Documents & Admin Moderation | `[x] COMPLETED & FROZEN` | 27/27 integration tests passed (private storage isolation, magic bytes, streaming headers, audit logging, 409 conflict, bidirectional LIVE invariant). |
+| **Slice 4: Trust Layer** | Verification Documents & Admin Moderation | `[x] COMPLETED & FROZEN` | 34/34 integration tests passed (private storage isolation, magic bytes, streaming headers, audit logging, 409 conflict, bidirectional LIVE invariant, full KYC + property-doc erasure verified on disk — JPQL LEFT JOIN fix applied). |
 | **Slice 5: Discovery** | Search, Filters, Map & SSR Details | `[ ] TODO` | JPA search specifications, Leaflet map, details page. |
 | **Slice 6: Connection** | WhatsApp, Enquiries, Visits & Favorites | `[ ] TODO` | V5 migration, wa.me deep links, visit scheduling. |
 | **Slice 7: Trust & Operations**| Reports, Moderation, In-App Notifications | `[ ] TODO` | V6 migration, reporting engine, admin audit logs. |
