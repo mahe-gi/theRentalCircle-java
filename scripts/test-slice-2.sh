@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# RentalCircle — Slice 2 Integration & Security Verification Suite
+# Platform — Slice 2 Integration & Security Verification Suite
 # Script: scripts/test-slice-2.sh
 # 
 # Tests end-to-end against the running stack (default: http://localhost):
@@ -10,9 +10,10 @@
 # 4. Protected Resource without Token (GET /api/v1/auth/me) -> 401 Unauthorized
 # 5. Session Refresh (POST /api/v1/auth/refresh) -> 200 OK, new token & new cookie
 # 6. Refresh Token Reuse / Theft Detection -> Old token rejected (401) & family revoked
-# 7. User Suspension -> is_active=false rejected (401/403), then restored
-# 8. User Logout (POST /api/v1/auth/logout) -> 200 OK, cookie cleared (Max-Age=0)
-# 9. PASS/FAIL Summary & Report
+# 7. Concurrent Refresh Token Race Condition -> Exactly one 200 and one 401
+# 8. User Suspension -> is_active=false rejected (401/403), then restored
+# 9. User Logout (POST /api/v1/auth/logout) -> 200 OK, cookie cleared (Max-Age=0)
+# 10. PASS/FAIL Summary & Report
 # ==============================================================================
 
 set -o pipefail
@@ -41,7 +42,7 @@ PASSED_TESTS=0
 FAILED_TESTS=0
 
 # Temporary directory for request/response captures
-TMP_DIR=$(mktemp -d /tmp/rentalcircle-test-slice2-XXXXXX 2>/dev/null || mktemp -d -t 'rentalcircle-test-slice2')
+TMP_DIR=$(mktemp -d /tmp/platform-test-slice2-XXXXXX 2>/dev/null || mktemp -d -t 'platform-test-slice2')
 trap 'rm -rf "$TMP_DIR"' EXIT INT TERM
 
 # Utility output functions
@@ -112,7 +113,7 @@ execute_db_sql() {
 # ------------------------------------------------------------------------------
 # Pre-Flight Checks
 # ------------------------------------------------------------------------------
-log_header "RentalCircle Slice 2 Integration & Security Test Suite"
+log_header "Platform Slice 2 Integration & Security Test Suite"
 echo -e "Base Target URL: ${BOLD}${BASE_URL}${NC}"
 echo -e "Temporary Dir:   ${TMP_DIR}"
 
@@ -382,7 +383,64 @@ else
 fi
 
 # ==============================================================================
-# 7. Test User Suspension
+# 7. Concurrent Refresh Token Race Condition
+# ==============================================================================
+log_step "Concurrent Refresh Token Race Condition"
+
+# Obtain a fresh session for race condition testing
+RACE_LOGIN_BODY="${TMP_DIR}/race_login_body.json"
+RACE_LOGIN_HEADERS="${TMP_DIR}/race_login_headers.txt"
+
+HTTP_CODE=$(curl -s -X POST "${BASE_URL}/api/v1/auth/login" \
+    -H "Content-Type: application/json" \
+    -d "$LOGIN_PAYLOAD" \
+    -D "$RACE_LOGIN_HEADERS" \
+    -o "$RACE_LOGIN_BODY" \
+    -w "%{http_code}")
+
+RACE_REFRESH_TOKEN=""
+if [ "$HTTP_CODE" = "200" ]; then
+    RACE_COOKIE=$(grep -i '^set-cookie:' "$RACE_LOGIN_HEADERS" | grep -Ei '(refresh_token|refreshToken)=' | head -n 1)
+    RACE_REFRESH_TOKEN=$(echo "$RACE_COOKIE" | sed -E 's/.*(refresh_token|refreshToken)=([^;]+).*/\2/' | tr -d '\r\n ')
+fi
+
+if [ -n "$RACE_REFRESH_TOKEN" ]; then
+    # Fire two concurrent refresh requests simultaneously using the same refresh token
+    RACE_RES1="${TMP_DIR}/race_res1.json"
+    RACE_RES2="${TMP_DIR}/race_res2.json"
+    RACE_CODE1_FILE="${TMP_DIR}/race_code1.txt"
+    RACE_CODE2_FILE="${TMP_DIR}/race_code2.txt"
+
+    curl -s -X POST "${BASE_URL}/api/v1/auth/refresh" \
+        -H "Cookie: refresh_token=${RACE_REFRESH_TOKEN}; refreshToken=${RACE_REFRESH_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -o "$RACE_RES1" \
+        -w "%{http_code}" > "$RACE_CODE1_FILE" &
+    PID1=$!
+
+    curl -s -X POST "${BASE_URL}/api/v1/auth/refresh" \
+        -H "Cookie: refresh_token=${RACE_REFRESH_TOKEN}; refreshToken=${RACE_REFRESH_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -o "$RACE_RES2" \
+        -w "%{http_code}" > "$RACE_CODE2_FILE" &
+    PID2=$!
+
+    wait "$PID1" "$PID2"
+
+    CODE1=$(tr -d '\r\n ' < "$RACE_CODE1_FILE")
+    CODE2=$(tr -d '\r\n ' < "$RACE_CODE2_FILE")
+
+    if { [ "$CODE1" = "200" ] && [ "$CODE2" = "401" ]; } || { [ "$CODE1" = "401" ] && [ "$CODE2" = "200" ]; }; then
+        pass_test "Concurrent Refresh Race Condition" "Exactly one concurrent request succeeded (200) and the other was rejected (401) [req1=${CODE1}, req2=${CODE2}]"
+    else
+        fail_test "Concurrent Refresh Race Condition" "Expected exactly one 200 and one 401, but received req1=${CODE1}, req2=${CODE2}"
+    fi
+else
+    fail_test "Concurrent Refresh Race Condition" "Could not obtain refresh token for race condition test"
+fi
+
+# ==============================================================================
+# 8. Test User Suspension
 # ==============================================================================
 log_step "Test User Suspension (is_active = false)"
 
@@ -449,7 +507,7 @@ else
 fi
 
 # ==============================================================================
-# 8. Logout (POST /api/v1/auth/logout)
+# 9. Logout (POST /api/v1/auth/logout)
 # ==============================================================================
 log_step "Logout (POST /api/v1/auth/logout)"
 

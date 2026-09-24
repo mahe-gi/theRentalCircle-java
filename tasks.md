@@ -93,12 +93,18 @@ curl -f http://localhost/
 - [x] **TASK-206**: Implement frontend client auth:
   * `src/lib/api-client.ts` with Axios request interceptor (attaches in-memory JWT) and response interceptor (automatic 401 refresh call).
   * Auth pages (`app/(auth)/login/page.tsx`, `app/(auth)/register/page.tsx`).
+- [x] **TASK-207**: Hardening pass:
+  * Upgraded `jjwt.version` to `0.13.0` in `backend/pom.xml`.
+  * Verified Spring Security 7.1.1 is managed cleanly via Spring Boot 4.1.1 parent.
+  * Added Concurrent Refresh Token Race Condition test to test suite (asserting exactly one 200 and one 401).
+  * Sanitized product branding in technical scripts and temp directories.
+  * Rebuilt backend container and verified 16/16 tests passing (100%).
 
 #### Verification:
 ```bash
-cd backend && ./mvnw test -Dtest=AuthControllerTest,RefreshTokenServiceTest
+bash scripts/test-slice-2.sh
 ```
-*Criteria*: User can register, login, retrieve `/api/v1/auth/me`, experience automatic refresh upon token expiry, and logout cleanly.
+*Criteria*: All 16 security and authentication integration tests pass (100%), including concurrent refresh token race condition and theft reuse family revocation. Slice 2 is 100% frozen.
 
 ---
 

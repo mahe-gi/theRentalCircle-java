@@ -46,7 +46,7 @@
 | Slice | Product Focus | Status | Next Milestone |
 |---|---|---|---|
 | **Slice 1: Foundation** | Runnable Skeleton & Docker Environment | `[x] COMPLETED` | All 4 containers healthy, Flyway ran, endpoints verified. |
-| **Slice 2: Authentication** | User Registration, JWT & Refresh Session | `[x] COMPLETED` | 15/15 integration tests passed (registration, JWT, rotation, reuse-revocation, suspension). |
+| **Slice 2: Authentication** | User Registration, JWT & Refresh Session | `[x] COMPLETED & FROZEN` | 16/16 integration tests passed (registration, JWT, rotation, reuse-revocation, concurrent refresh race condition, suspension, logout). |
 | **Slice 3: Owner + Property** | Owner Onboarding, Draft Wizard & Photos | `[ ] TODO` | V2 & V4 migrations, property CRUD, photo uploads. |
 | **Slice 4: Trust Layer** | Verification Documents & Admin Moderation | `[ ] TODO` | V3 migration, secure doc storage, LIVE eligibility rule. |
 | **Slice 5: Discovery** | Search, Filters, Map & SSR Details | `[ ] TODO` | JPA search specifications, Leaflet map, details page. |
@@ -57,6 +57,30 @@
 ---
 
 ## 4. Active Checkpoint Log
+
+```text
+[CHECKPOINT-20260924-09]
+- Timestamp: 2026-09-24T16:42:00+05:30
+- Phase: SLICE 2 — Hardening Pass & Formal Freezing COMPLETED
+- Status: 100% VERIFIED & FROZEN
+- Verification Evidence:
+  1. Dependency Modernization:
+     * JJWT upgraded to version 0.13.0 (`io.jsonwebtoken:jjwt-api`, `jjwt-impl`, `jjwt-jackson`) in `backend/pom.xml`.
+     * Verified Spring Security is not hardcoded and is cleanly managed by Spring Boot 4.1.1 (providing Spring Security 7.1.1).
+  2. Technical Brand Sanitization:
+     * Removed all product branding ("RentalCircle") from test scripts and temporary paths (`scripts/test-slice-2.sh`, `/tmp/platform-test-slice2-*`).
+     * Confirmed 0 occurrences of product name in technical execution paths.
+  3. Race Condition Invariant Verified:
+     * Added Concurrent Refresh Token Race Condition test to `scripts/test-slice-2.sh`.
+     * Two concurrent requests presenting the exact same refresh token simultaneously resulted in exactly one HTTP 200 OK and one HTTP 401 Unauthorized rejection.
+  4. End-to-End Test Suite Execution (`scripts/test-slice-2.sh`):
+     * Total Checks Executed: 16
+     * Total Checks Passed:   16 (100%)
+     * Total Checks Failed:   0
+  5. Slice Status:
+     * Slice 2 is formally verified and FROZEN. Zero further edits needed.
+- Next Action: Slice 3 Planning & Owner/Property Onboarding Architecture.
+```
 
 ```text
 [CHECKPOINT-20260924-08]
