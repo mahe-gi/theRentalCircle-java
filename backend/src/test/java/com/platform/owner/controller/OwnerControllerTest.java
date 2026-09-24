@@ -218,4 +218,50 @@ class OwnerControllerTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value(containsString("Owner profile not found")));
     }
+
+    @Test
+    @DisplayName("POST /api/v1/owners/verification/submit returns 200 on success")
+    void testSubmitForVerificationSuccess() throws Exception {
+        OwnerProfileResponse response = OwnerProfileResponse.builder()
+                .id(5L)
+                .userId(1L)
+                .verificationStatus(com.platform.owner.entity.VerificationStatus.SUBMITTED)
+                .build();
+
+        when(ownerProfileService.submitForVerification(1L)).thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/owners/verification/submit"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.verificationStatus").value("SUBMITTED"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/owners/verification/submit returns 400 when no documents uploaded")
+    void testSubmitForVerificationNoDocs() throws Exception {
+        when(ownerProfileService.submitForVerification(1L))
+                .thenThrow(new IllegalStateException("At least one identity or address proof document must be uploaded before submitting for verification"));
+
+        mockMvc.perform(post("/api/v1/owners/verification/submit"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value(containsString("At least one identity or address proof document must be uploaded")));
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/owners/verification/status returns verification status and admin remarks")
+    void testGetVerificationStatusSuccess() throws Exception {
+        com.platform.owner.dto.OwnerVerificationStatusResponse response = com.platform.owner.dto.OwnerVerificationStatusResponse.builder()
+                .verificationStatus(com.platform.owner.entity.VerificationStatus.UNDER_REVIEW)
+                .adminRemarks("Verification in progress")
+                .build();
+
+        when(ownerProfileService.getVerificationStatus(1L)).thenReturn(response);
+
+        mockMvc.perform(get("/api/v1/owners/verification/status"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.verificationStatus").value("UNDER_REVIEW"))
+                .andExpect(jsonPath("$.data.adminRemarks").value("Verification in progress"));
+    }
 }

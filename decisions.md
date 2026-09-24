@@ -147,3 +147,19 @@ If an engineer or AI agent discovers that a `LOCKED` decision cannot be implemen
 * **Implementation**: Standard JSON REST endpoints returning `ApiResponse<T>`, secured by Bearer JWT tokens and cookie refresh mechanisms.
 * **Trade-offs**: Clean, reusable API architecture; requires keeping DTO contracts strictly decoupled from web-specific HTML requirements.
 * **Status**: `LOCKED`
+
+---
+
+### DEC-13: KYC Document Privacy, Retention & Sensitive Access Audit Policy
+* **Decision**: Store all sensitive verification documents in private, non-web-accessible storage (`/var/app/secure-docs/`), enforce download streaming with strict security headers, prohibit storing plaintext identity numbers (PAN/Aadhaar) in database tables, and record immutable audit logs on administrative access.
+* **Why We Need It**: To comply with privacy standards (DPDP / GDPR) and prevent identity theft, unauthorized data harvesting, or accidental exposure through public web servers or CDN caches.
+* **Alternatives Considered**: Storing KYC documents in public S3/Nginx directory (rejected as catastrophic security vulnerability); storing plaintext Aadhaar/PAN numbers in `owner_profiles` (rejected because documents are the evidence and storing raw numbers increases regulatory compliance blast radius).
+* **Implementation**:
+  * **Zero Nginx Route**: `/var/app/secure-docs/` is completely unmapped in Nginx. Files can ONLY be fetched through the authenticated Spring Boot streaming endpoint `GET /api/v1/documents/{id}/download`.
+  * **Strict Download Headers**: Every response carries `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, and `Content-Disposition: attachment; filename="<sanitized>"`.
+  * **Immutable Admin Access Audit**: Every administrative download or view of an owner document creates a persistent audit entry in `admin_document_access`.
+  * **Development Invariant**: Real government documents are prohibited in development, CI, and test environments. Only synthesized dummy test files are permitted.
+  * **Retention & Erasure**: Rejected documents are marked inactive and purged after 30 days. On account deletion or user data erasure request, physical documents and database rows are wiped permanently. Verified documents are retained securely for the active lifetime of the owner account for legal zero-broker compliance.
+* **Trade-offs**: Requires streaming documents through application JVM and maintaining audit trails; eliminates identity leakage vectors.
+* **Status**: `LOCKED`
+

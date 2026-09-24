@@ -42,6 +42,21 @@ public class OwnerProfile {
     @Builder.Default
     private String declarationVersion = "v1.0";
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status", nullable = false, length = 32)
+    @Builder.Default
+    private VerificationStatus verificationStatus = VerificationStatus.NOT_STARTED;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "verified_by")
+    private User verifiedBy;
+
+    @Column(name = "verified_at")
+    private Instant verifiedAt;
+
+    @Column(name = "admin_remarks", columnDefinition = "TEXT")
+    private String adminRemarks;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -61,6 +76,9 @@ public class OwnerProfile {
         }
         if (declarationVersion == null) {
             declarationVersion = "v1.0";
+        }
+        if (verificationStatus == null) {
+            verificationStatus = VerificationStatus.NOT_STARTED;
         }
     }
 

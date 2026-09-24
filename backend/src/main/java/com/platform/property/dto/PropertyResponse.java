@@ -42,6 +42,8 @@ public class PropertyResponse {
     private List<String> amenities;
     private Instant createdAt;
     private Instant updatedAt;
+    private String adminRemarks;
+    private Instant reviewedAt;
 
     public static PropertyResponse fromEntity(Property property) {
         if (property == null) {
@@ -91,6 +93,8 @@ public class PropertyResponse {
                 .amenities(amenityList)
                 .createdAt(property.getCreatedAt())
                 .updatedAt(property.getUpdatedAt())
+                .adminRemarks(property.getAdminRemarks())
+                .reviewedAt(property.getReviewedAt())
                 .build();
     }
 }

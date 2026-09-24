@@ -22,6 +22,10 @@ public class OwnerProfileResponse {
     private boolean declarationAccepted;
     private Instant declarationAcceptedAt;
     private String declarationVersion;
+    private com.platform.owner.entity.VerificationStatus verificationStatus;
+    private Long verifiedBy;
+    private Instant verifiedAt;
+    private String adminRemarks;
 
     public static OwnerProfileResponse fromEntity(OwnerProfile profile) {
         if (profile == null) {
@@ -35,6 +39,10 @@ public class OwnerProfileResponse {
                 .declarationAccepted(profile.isDeclarationAccepted())
                 .declarationAcceptedAt(profile.getDeclarationAcceptedAt())
                 .declarationVersion(profile.getDeclarationVersion())
+                .verificationStatus(profile.getVerificationStatus())
+                .verifiedBy(profile.getVerifiedBy() != null ? profile.getVerifiedBy().getId() : null)
+                .verifiedAt(profile.getVerifiedAt())
+                .adminRemarks(profile.getAdminRemarks())
                 .build();
     }
 }

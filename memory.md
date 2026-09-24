@@ -48,7 +48,7 @@
 | **Slice 1: Foundation** | Runnable Skeleton & Docker Environment | `[x] COMPLETED` | All 4 containers healthy, Flyway ran, endpoints verified. |
 | **Slice 2: Authentication** | User Registration, JWT & Refresh Session | `[x] COMPLETED & FROZEN` | 16/16 integration tests passed (registration, JWT, rotation, reuse-revocation, concurrent refresh race condition, suspension, logout). |
 | **Slice 3: Owner + Property** | Owner Onboarding, Draft Wizard & Photos | `[x] COMPLETED & FROZEN` | 20/20 integration tests passed (declaration, draft CRUD, district, photo upload, magic bytes, orphan-cleanup, IDOR guard, submit lock). |
-| **Slice 4: Trust Layer** | Verification Documents & Admin Moderation | `[ ] TODO` | V4 migration, secure doc storage, LIVE eligibility rule. |
+| **Slice 4: Trust Layer** | Verification Documents & Admin Moderation | `[x] COMPLETED & FROZEN` | 27/27 integration tests passed (private storage isolation, magic bytes, streaming headers, audit logging, 409 conflict, bidirectional LIVE invariant). |
 | **Slice 5: Discovery** | Search, Filters, Map & SSR Details | `[ ] TODO` | JPA search specifications, Leaflet map, details page. |
 | **Slice 6: Connection** | WhatsApp, Enquiries, Visits & Favorites | `[ ] TODO` | V5 migration, wa.me deep links, visit scheduling. |
 | **Slice 7: Trust & Operations**| Reports, Moderation, In-App Notifications | `[ ] TODO` | V6 migration, reporting engine, admin audit logs. |
@@ -57,6 +57,40 @@
 ---
 
 ## 4. Active Checkpoint Log
+
+```text
+[CHECKPOINT-20260924-11]
+- Timestamp: 2026-09-24T18:17:00+05:30
+- Phase: SLICE 4 — Trust Layer (KYC Verification, Private Storage & Admin Moderation) COMPLETED
+- Status: 100% VERIFIED & FROZEN
+- Verification Evidence:
+  1. Database Migration:
+     * `V4__verification_documents.sql` executed cleanly against PostgreSQL 17.11.
+     * Tables `documents` and `admin_document_access` created with explicit foreign keys.
+     * `owner_profiles` expanded with `verification_status` ('NOT_STARTED', 'SUBMITTED', 'UNDER_REVIEW', 'MORE_INFORMATION_REQUIRED', 'VERIFIED', 'REJECTED'), `verified_by`, `verified_at`, `admin_remarks` (zero plaintext PAN/Aadhaar columns).
+     * `properties` status constraint expanded to include 'MORE_INFORMATION_REQUIRED', 'UNDER_REVIEW', 'APPROVED', 'LIVE', 'REJECTED', 'SUSPENDED'; added `reviewed_by`, `reviewed_at`, `admin_remarks`.
+     * Partial unique index `uq_property_primary_image` active on `property_images(property_id) WHERE is_primary = TRUE`.
+  2. Private Document Storage Subsystem:
+     * Storage volume `/var/app/secure-docs/` strictly unmapped in Nginx (confirmed via 404 on direct HTTP requests).
+     * 20MB file limit and magic byte inspection (%PDF, JPEG, PNG) strictly enforced.
+     * Streaming download via `GET /api/v1/documents/{id}/download` enforcing owner or admin access, with `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, and `Content-Disposition: attachment`.
+     * Sensitive administrative document downloads automatically record persistent audit entries in `admin_document_access`.
+  3. Golden Invariant & Deterministic LIVE State Machine:
+     * Common transition engine: `attemptTransitionToLive(Property)` strictly enforces that a listing transitions to `LIVE` only when `owner.verificationStatus == VERIFIED AND property.status == APPROVED`.
+     * Trigger A verified: Approving an unverified owner's property sets status to `APPROVED`, NOT `LIVE`. Later verifying the owner automatically transitions the property from `APPROVED ➔ LIVE`.
+     * Trigger B verified: Verifying an owner first, then approving their property, immediately transitions the property directly to `LIVE`.
+  4. Optimistic Concurrency / 409 Conflict Protection:
+     * State-conditional updates (`WHERE id = :id AND status IN ('SUBMITTED', 'UNDER_REVIEW')`) prevent concurrent admin decision collisions. Parallel decisions verified with exactly one 200 OK and one 409 Conflict.
+  5. Frontend UI:
+     * `/owner/verification`: status banners (`MORE_INFORMATION_REQUIRED` alert), document upload dropzone, streaming download, and verification submission button.
+     * `/admin/owners` & `/admin/properties`: moderation queues, review drawers with confidential access warnings, Approve/Reject/Request Info modals with mandatory remarks.
+     * Verified with 0 TypeScript compilation errors (`npx tsc --noEmit`).
+  6. Automated Test Suites:
+     * `scripts/test-slice-4.sh`: 27/27 passed (100%).
+     * `scripts/test-slice-3.sh`: 20/20 passed (100% - zero regressions).
+     * `scripts/test-slice-2.sh`: 16/16 passed (100% - zero regressions).
+- Next Action: Slice 5 Planning & Discovery / Public Search Architecture.
+```
 
 ```text
 [CHECKPOINT-20260924-10]

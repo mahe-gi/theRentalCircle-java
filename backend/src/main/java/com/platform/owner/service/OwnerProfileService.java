@@ -3,7 +3,9 @@ package com.platform.owner.service;
 import com.platform.common.exception.ResourceNotFoundException;
 import com.platform.owner.dto.CreateOwnerProfileRequest;
 import com.platform.owner.dto.OwnerProfileResponse;
+import com.platform.owner.dto.OwnerVerificationStatusResponse;
 import com.platform.owner.entity.OwnerProfile;
+import com.platform.owner.entity.VerificationStatus;
 import com.platform.owner.repository.OwnerProfileRepository;
 import com.platform.user.entity.Role;
 import com.platform.user.entity.User;
@@ -50,6 +52,7 @@ public class OwnerProfileService {
                 .declarationAccepted(req.getDeclarationAccepted())
                 .declarationAcceptedAt(Instant.now())
                 .declarationVersion("v1.0")
+                .verificationStatus(VerificationStatus.NOT_STARTED)
                 .build();
 
         OwnerProfile saved = ownerProfileRepository.save(profile);
@@ -62,5 +65,38 @@ public class OwnerProfileService {
         OwnerProfile profile = ownerProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found for user ID: " + userId));
         return OwnerProfileResponse.fromEntity(profile);
+    }
+
+    @Transactional
+    public OwnerProfileResponse submitForVerification(Long userId) {
+        OwnerProfile profile = ownerProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found for user ID: " + userId));
+
+        long docCount = ownerProfileRepository.countDocumentsByOwnerProfileId(profile.getId());
+        if (docCount == 0) {
+            throw new IllegalStateException("At least one identity or address proof document must be uploaded before submitting for verification");
+        }
+
+        if (profile.getVerificationStatus() != VerificationStatus.NOT_STARTED
+                && profile.getVerificationStatus() != VerificationStatus.MORE_INFORMATION_REQUIRED) {
+            throw new IllegalStateException("Owner profile cannot be submitted for verification from current status: " + profile.getVerificationStatus());
+        }
+
+        profile.setVerificationStatus(VerificationStatus.SUBMITTED);
+        profile.setUpdatedAt(Instant.now());
+        OwnerProfile saved = ownerProfileRepository.save(profile);
+        log.info("Owner profile id: {} submitted for verification", saved.getId());
+        return OwnerProfileResponse.fromEntity(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public OwnerVerificationStatusResponse getVerificationStatus(Long userId) {
+        OwnerProfile profile = ownerProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found for user ID: " + userId));
+        return OwnerVerificationStatusResponse.builder()
+                .verificationStatus(profile.getVerificationStatus())
+                .adminRemarks(profile.getAdminRemarks())
+                .verifiedAt(profile.getVerifiedAt())
+                .build();
     }
 }

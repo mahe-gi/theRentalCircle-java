@@ -245,13 +245,12 @@ public class PropertyImageService {
         PropertyImage targetImage = propertyImageRepository.findByIdAndPropertyId(imageId, propertyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Property image not found with id: " + imageId));
 
-        List<PropertyImage> images = propertyImageRepository.findByPropertyIdOrderByDisplayOrderAsc(propertyId);
-        for (PropertyImage img : images) {
-            boolean isTarget = img.getId().equals(imageId);
-            img.setPrimary(isTarget);
-            propertyImageRepository.save(img);
-        }
-        propertyImageRepository.flush();
+        // 1. Reset all images for this property to isPrimary = false first
+        // to prevent violating the uq_property_primary_image unique constraint
+        propertyImageRepository.resetPrimaryForProperty(propertyId);
+
+        // 2. Set the designated image to isPrimary = true
+        propertyImageRepository.setPrimaryImage(propertyId, imageId);
 
         targetImage.setPrimary(true);
         return PropertyImageResponse.fromEntity(targetImage);

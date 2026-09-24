@@ -9,11 +9,13 @@ import {
   LayoutDashboard,
   Home,
   LogOut,
-  User as UserIcon,
   Menu,
   X,
   ShieldCheck,
+  ShieldAlert,
   ChevronDown,
+  Users,
+  FileCheck,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 
@@ -22,10 +24,15 @@ export function Navbar() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
 
   const isOwner =
     Boolean(user?.roles?.includes("ROLE_OWNER")) ||
     user?.userType === "OWNER";
+
+  const isAdmin =
+    Boolean(user?.roles?.includes("ROLE_ADMIN")) ||
+    user?.userType === "ADMIN";
 
   const listPropertyHref = isOwner
     ? "/owner/properties/new"
@@ -65,7 +72,7 @@ export function Navbar() {
           </span>
         </div>
 
-        {/* Desktop Navigation Navigation Links */}
+        {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-charcoal">
           <Link
             href="/#discovery"
@@ -96,7 +103,54 @@ export function Navbar() {
                 <Home className="w-4 h-4" />
                 My Properties
               </Link>
+              <Link
+                href="/owner/verification"
+                className="hover:text-forest transition-colors flex items-center gap-1.5"
+              >
+                <FileCheck className="w-4 h-4 text-forest" />
+                KYC Verification
+              </Link>
             </>
+          )}
+
+          {isAdmin && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setAdminDropdownOpen(!adminDropdownOpen)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-amber bg-amber/10 border border-amber/20 hover:bg-amber/20 transition-colors"
+                aria-expanded={adminDropdownOpen}
+              >
+                <ShieldAlert className="w-3.5 h-3.5 text-amber" />
+                <span>Admin Console</span>
+                <ChevronDown className="w-3.5 h-3.5 text-amber" />
+              </button>
+
+              {adminDropdownOpen && (
+                <div
+                  className="absolute left-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-[#E8E4DD] py-2 z-50 text-sm animate-in fade-in duration-100"
+                  onClick={() => setAdminDropdownOpen(false)}
+                >
+                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-charcoal-light">
+                    Moderation Suite
+                  </div>
+                  <Link
+                    href="/admin/owners"
+                    className="flex items-center gap-2.5 px-3.5 py-2 text-charcoal hover:bg-sand transition-colors font-medium text-xs"
+                  >
+                    <Users className="w-4 h-4 text-forest" />
+                    Verify Owners
+                  </Link>
+                  <Link
+                    href="/admin/properties"
+                    className="flex items-center gap-2.5 px-3.5 py-2 text-charcoal hover:bg-sand transition-colors font-medium text-xs"
+                  >
+                    <Building2 className="w-4 h-4 text-forest" />
+                    Moderate Properties
+                  </Link>
+                </div>
+              )}
+            </div>
           )}
         </nav>
 
@@ -133,7 +187,7 @@ export function Navbar() {
 
               {userDropdownOpen && (
                 <div
-                  className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-[#E8E4DD] py-2 z-50 text-sm animate-in fade-in duration-100"
+                  className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-lg border border-[#E8E4DD] py-2 z-50 text-sm animate-in fade-in duration-100"
                   onClick={() => setUserDropdownOpen(false)}
                 >
                   <div className="px-4 py-2 border-b border-[#E8E4DD]/60">
@@ -143,12 +197,26 @@ export function Navbar() {
                     <p className="text-[11px] text-charcoal-light truncate">
                       {user.email}
                     </p>
-                    <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-forest-light text-forest">
-                      {isOwner ? "Verified Owner" : "Tenant / Buyer"}
-                    </span>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {isAdmin && (
+                        <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber/15 text-amber">
+                          Admin
+                        </span>
+                      )}
+                      {isOwner && (
+                        <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-forest-light text-forest">
+                          Owner
+                        </span>
+                      )}
+                      {!isAdmin && !isOwner && (
+                        <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sand-muted text-charcoal">
+                          Tenant / Buyer
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {isOwner ? (
+                  {isOwner && (
                     <>
                       <Link
                         href="/owner/dashboard"
@@ -164,8 +232,17 @@ export function Navbar() {
                         <Building2 className="w-4 h-4 text-forest" />
                         My Properties
                       </Link>
+                      <Link
+                        href="/owner/verification"
+                        className="flex items-center gap-2.5 px-4 py-2 text-charcoal hover:bg-sand transition-colors"
+                      >
+                        <FileCheck className="w-4 h-4 text-forest" />
+                        KYC Verification
+                      </Link>
                     </>
-                  ) : (
+                  )}
+
+                  {!isOwner && (
                     <Link
                       href="/owner/become-owner"
                       className="flex items-center gap-2.5 px-4 py-2 text-forest font-medium hover:bg-forest-light transition-colors"
@@ -173,6 +250,28 @@ export function Navbar() {
                       <ShieldCheck className="w-4 h-4 text-amber" />
                       Become an Owner
                     </Link>
+                  )}
+
+                  {isAdmin && (
+                    <div className="border-t border-[#E8E4DD]/60 my-1 pt-1">
+                      <div className="px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-charcoal-light">
+                        Admin Console
+                      </div>
+                      <Link
+                        href="/admin/owners"
+                        className="flex items-center gap-2.5 px-4 py-2 text-charcoal hover:bg-sand transition-colors"
+                      >
+                        <Users className="w-4 h-4 text-forest" />
+                        Verify Owners
+                      </Link>
+                      <Link
+                        href="/admin/properties"
+                        className="flex items-center gap-2.5 px-4 py-2 text-charcoal hover:bg-sand transition-colors"
+                      >
+                        <Building2 className="w-4 h-4 text-forest" />
+                        Moderate Properties
+                      </Link>
+                    </div>
                   )}
 
                   <div className="border-t border-[#E8E4DD]/60 mt-1 pt-1">
@@ -259,8 +358,41 @@ export function Navbar() {
                   <Home className="w-4 h-4" />
                   My Properties
                 </Link>
+                <Link
+                  href="/owner/verification"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-3 py-2 rounded-lg text-charcoal hover:bg-sand flex items-center gap-2"
+                >
+                  <FileCheck className="w-4 h-4 text-forest" />
+                  KYC Verification
+                </Link>
               </>
             )}
+
+            {isAdmin && (
+              <div className="pt-2 border-t border-[#E8E4DD]/60 space-y-1">
+                <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-amber">
+                  Admin Console
+                </div>
+                <Link
+                  href="/admin/owners"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-3 py-2 rounded-lg text-charcoal hover:bg-sand flex items-center gap-2"
+                >
+                  <Users className="w-4 h-4 text-forest" />
+                  Verify Owners
+                </Link>
+                <Link
+                  href="/admin/properties"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-3 py-2 rounded-lg text-charcoal hover:bg-sand flex items-center gap-2"
+                >
+                  <Building2 className="w-4 h-4 text-forest" />
+                  Moderate Properties
+                </Link>
+              </div>
+            )}
+
             <Link
               href={listPropertyHref}
               onClick={() => setMobileMenuOpen(false)}

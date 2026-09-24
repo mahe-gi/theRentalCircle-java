@@ -242,15 +242,27 @@ Owner declares ownership/representation
 Owner VERIFIED + Property APPROVED
                │
                ▼
-    Property ELIGIBLE FOR LIVE
+    Property ELIGIBLE FOR LIVE (Automatic transition to LIVE)
 ```
 
 1. **`ROLE_OWNER` vs. `VERIFIED`**:
    * `ROLE_OWNER`: User has declared intent to list as a property owner or representative.
-   * `VERIFIED`: The owner's submitted identity and proof documents have passed admin review.
-2. **Approved vs. Live**:
-   * An admin can mark a property `APPROVED` based on listing quality and photos.
-   * However, a property **cannot** transition to `LIVE` in the public marketplace unless the listing owner's profile is in `VERIFIED` status.
+   * `VERIFIED`: The owner's submitted identity and proof documents have passed admin review (`owner_profiles.verification_status == VERIFIED`).
+2. **Standardized Status Vocabulary**:
+   * Owner verification status: `NOT_STARTED`, `SUBMITTED`, `UNDER_REVIEW`, `MORE_INFORMATION_REQUIRED`, `VERIFIED`, `REJECTED`.
+   * Property moderation status: `DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `MORE_INFORMATION_REQUIRED`, `APPROVED`, `LIVE`, `REJECTED`, `SUSPENDED`.
+3. **Deterministic `LIVE` Lifecycle & Common Transition**:
+   * **The Golden Invariant**: A property is permitted in `LIVE` status **ONLY** when both conditions are satisfied:
+     `owner.verificationStatus == VERIFIED AND property.status == APPROVED` (or transitioning from `APPROVED` to `LIVE`).
+   * **Atomic Dual-Trigger Transition (`attemptTransitionToLive`)**:
+     * **Trigger A (Property Moderation Approval)**: When an admin approves a property (`SUBMITTED`/`UNDER_REVIEW` ➔ `APPROVED`), the system checks the owner's verification status. If the owner is already `VERIFIED`, the property immediately transitions `APPROVED ➔ LIVE`. If not, it remains `APPROVED` (eligible, awaiting owner verification).
+     * **Trigger B (Owner Verification)**: When an admin verifies an owner (`SUBMITTED`/`UNDER_REVIEW` ➔ `VERIFIED`), the system queries all properties belonging to this owner that are currently in `APPROVED` status and automatically transitions each of them `APPROVED ➔ LIVE`.
+   * **Revocation/Suspension Cascade**: If a verified owner's verification status is revoked or suspended, all their `LIVE` properties immediately transition from `LIVE ➔ SUSPENDED`.
+4. **Optimistic Concurrency / State-Conditional Admin Decisions**:
+   * Admin actions must use state-conditional SQL updates (`WHERE id = :id AND status IN ('SUBMITTED', 'UNDER_REVIEW')`) to ensure two concurrent administrators never overwrite each other silently. If 0 rows are affected, a HTTP 409 Conflict is returned.
+5. **Sensitive Admin Document Audit**:
+   * Every administrative download or view of an owner's KYC document (`GET /api/v1/documents/{id}/download`) creates an immutable audit record in `admin_document_access`.
+
 
 ---
 

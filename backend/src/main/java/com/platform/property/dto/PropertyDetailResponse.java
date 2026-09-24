@@ -51,6 +51,8 @@ public class PropertyDetailResponse {
     private List<PropertyImageResponse> images;
     private Instant createdAt;
     private Instant updatedAt;
+    private String adminRemarks;
+    private Instant reviewedAt;
 
     public static PropertyDetailResponse fromEntity(Property property) {
         if (property == null) {
@@ -103,6 +105,8 @@ public class PropertyDetailResponse {
                 .images(imageResponses)
                 .createdAt(property.getCreatedAt())
                 .updatedAt(property.getUpdatedAt())
+                .adminRemarks(property.getAdminRemarks())
+                .reviewedAt(property.getReviewedAt())
                 .build();
     }
 }

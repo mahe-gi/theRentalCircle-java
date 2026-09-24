@@ -20,8 +20,8 @@ spring:
     open-in-view: false
   servlet:
     multipart:
-      max-file-size: 15MB
-      max-request-size: 15MB
+      max-file-size: 25MB
+      max-request-size: 25MB
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -34,6 +34,8 @@ app:
     refresh-expiration-ms: ${REFRESH_TOKEN_EXPIRATION_MS:604800000}
   upload:
     dir: ${APP_UPLOAD_DIR:/var/app/uploads/properties}
+  document:
+    dir: ${APP_DOCUMENT_DIR:/var/app/secure-docs}
   storage:
     upload-dir: ${FILE_UPLOAD_DIR:/var/app/uploads}
     secure-docs-dir: ${FILE_SECURE_DOCS_DIR:/var/app/secure-docs}

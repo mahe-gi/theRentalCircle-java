@@ -158,20 +158,56 @@ bash scripts/test-slice-3.sh
 * **User Journey Unlocked**: Owner KYC submission, Admin review queues, Property transitioning to `LIVE`.
 
 #### Tasks:
-- [ ] **TASK-401**: Write Flyway migration `V4__verification_documents.sql` (`documents`, `verification_requests`).
-- [ ] **TASK-402**: Implement private document storage service (`FileStorageService`):
-  * Stores private docs in `/var/app/secure-docs/` (unmapped in Nginx).
-  * Enforces the 9 file security rules (never trust client filename/MIME, magic-byte check, whitelist, UUID filenames).
-  * Streaming download endpoint `GET /api/v1/documents/{id}/download` requiring owner or admin authorization.
-- [ ] **TASK-403**: Implement owner verification submission:
-  * `POST /api/v1/owners/verification/submit` (Transitions status `NOT_STARTED → SUBMITTED`).
-- [ ] **TASK-404**: Implement Admin Moderation endpoints:
-  * `GET /api/v1/admin/owners` & `PUT /api/v1/admin/owners/{id}/verify` (Sets owner status `VERIFIED`).
-  * `GET /api/v1/admin/properties` & `PUT /api/v1/admin/properties/{id}/approve` (Enforces live invariant: property transitions to `LIVE` only if owner is `VERIFIED`).
-  * Rejection and Request Info endpoints with mandatory admin remarks.
-- [ ] **TASK-405**: Frontend Admin Console UI:
-  * Owner verification review queue (`app/admin/owners/page.tsx`).
-  * Property listing moderation queue (`app/admin/properties/page.tsx`).
+- [x] **TASK-401**: Database Architect — Write Flyway migration `V4__verification_documents.sql`:
+  * Create `documents` table with explicit foreign keys (`owner_profile_id`, `property_id` [nullable], `document_type`, `storage_key`, `original_filename`, `file_size_bytes`, `content_type`, `status` ['UPLOADED', 'UNDER_REVIEW', 'VERIFIED', 'REJECTED'], `rejection_reason`).
+  * Create `admin_document_access` audit table (`id`, `admin_id`, `document_id`, `owner_profile_id`, `action`, `ip_address`, `created_at`).
+  * Modify `owner_profiles`: add `verification_status` with values ('NOT_STARTED', 'SUBMITTED', 'UNDER_REVIEW', 'MORE_INFORMATION_REQUIRED', 'VERIFIED', 'REJECTED'), `verified_by`, `verified_at`, `admin_remarks` (zero plaintext PAN/Aadhaar columns!).
+  * Modify `properties`: update status constraint to include ('DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'MORE_INFORMATION_REQUIRED', 'APPROVED', 'LIVE', 'REJECTED', 'SUSPENDED'), add `reviewed_by`, `reviewed_at`, `admin_remarks`.
+  * Add partial unique index: `CREATE UNIQUE INDEX uq_property_primary_image ON property_images(property_id) WHERE is_primary = TRUE;`.
+- [x] **TASK-402**: Private Storage & Document Specialist — Implement `DocumentStorageService` & `DocumentController`:
+  * Storage path: `/var/app/secure-docs/` (mounted volume, strictly unmapped in Nginx).
+  * 20MB limit, whitelist (`.pdf`, `.jpg`, `.jpeg`, `.png`), magic-byte inspection (PDF, JPEG, PNG).
+  * `POST /api/v1/documents`: uploads owner KYC document, generates UUID storage key (`docs/<uuid>.<ext>`), orphan cleanup on DB failure.
+  * `GET /api/v1/documents/{id}/download`: authenticated streaming download. Permitted ONLY for owning owner (`document.ownerProfile.userId == currentUserId`) or users with `ROLE_ADMIN`.
+  * Headers: `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Content-Disposition: attachment; filename="..."`.
+  * Sensitive audit: administrative downloads/views automatically log to `admin_document_access` (`ADMIN_DOCUMENT_DOWNLOAD`).
+  * Development invariant: dummy documents only.
+- [x] **TASK-403**: Backend Verification Specialist — Implement Owner Verification domain:
+  * `POST /api/v1/owners/verification/submit`: validates at least one identity document is uploaded; transitions `verification_status` from `NOT_STARTED` / `MORE_INFORMATION_REQUIRED` to `SUBMITTED`.
+  * `GET /api/v1/owners/verification/status`: returns verification status, remarks, and attached documents.
+- [x] **TASK-404**: Backend Moderation Specialist — Implement Admin Moderation & the `attemptTransitionToLive` engine:
+  * State-conditional updates on all admin actions (`WHERE id = :id AND status IN ('SUBMITTED', 'UNDER_REVIEW')`) returning HTTP 409 Conflict if concurrent decision detected.
+  * Owner review endpoints:
+    * `GET /api/v1/admin/owners`: lists owners filtered by `verificationStatus` with pagination.
+    * `PUT /api/v1/admin/owners/{id}/verify`: transitions owner to `VERIFIED`; triggers `attemptTransitionToLive` for all owner's `APPROVED` properties.
+    * `PUT /api/v1/admin/owners/{id}/reject`: transitions owner to `REJECTED` (with mandatory admin remarks).
+    * `PUT /api/v1/admin/owners/{id}/request-info`: transitions owner to `MORE_INFORMATION_REQUIRED` (with mandatory admin remarks).
+  * Property moderation endpoints:
+    * `GET /api/v1/admin/properties`: lists properties filtered by status with pagination.
+    * `PUT /api/v1/admin/properties/{id}/approve`: transitions property to `APPROVED`; triggers `attemptTransitionToLive` (if owner is `VERIFIED`, property transitions to `LIVE`).
+    * `PUT /api/v1/admin/properties/{id}/reject`: transitions property to `REJECTED` (with mandatory admin remarks).
+    * `PUT /api/v1/admin/properties/{id}/request-info`: transitions property to `MORE_INFORMATION_REQUIRED` (with mandatory admin remarks).
+  * Common `attemptTransitionToLive(Property)` enforcing Golden Invariant: `LIVE` only when `owner.verificationStatus == VERIFIED AND property.status == APPROVED`.
+- [x] **TASK-405**: Frontend Specialist — Build Owner KYC & Admin Moderation UI:
+  * Owner KYC portal (`app/owner/verification/page.tsx`): document upload dropzone, status badge (`NOT_STARTED`, `SUBMITTED`, `MORE_INFORMATION_REQUIRED`, `VERIFIED`, `REJECTED`), admin remarks display.
+  * Admin moderation console (`app/admin/owners/page.tsx` and `app/admin/properties/page.tsx`): review queue, document download/inspector with security warnings, Approve/Reject/Request Info modal with mandatory remarks.
+- [x] **TASK-406**: QA & Security Specialist — Automated Integration Test Suite (`scripts/test-slice-4.sh`):
+  * Private doc Nginx block (404/403 directly on `/secure-docs/*`).
+  * Document upload, magic byte check, owner/admin download.
+  * Sensitive admin document access audit verification (`admin_document_access`).
+  * Non-owner document download rejection (403).
+  * Concurrent admin decision collision test (409 Conflict).
+  * Golden Invariant tests:
+    - Approve property when owner is unverified -> property becomes `APPROVED`, NOT `LIVE`.
+    - Verify owner later -> property automatically transitions `APPROVED ➔ LIVE`.
+    - Verify owner first, then approve property -> property immediately transitions `APPROVED ➔ LIVE`.
+  * Regression test: `scripts/test-slice-2.sh` and `scripts/test-slice-3.sh`.
+
+#### Verification:
+```bash
+bash scripts/test-slice-4.sh
+```
+*Criteria*: Private documents inaccessible via Nginx; property cannot transition to `LIVE` if owner is unverified; approved property of verified owner transitions to `LIVE`; concurrent admin decisions rejected with 409; admin document access logged to audit table.
 
 #### Verification:
 ```bash

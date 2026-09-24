@@ -101,3 +101,13 @@ export interface PropertyFormData {
   amenities: string[];
   description: string;
 }
+
+export interface AdminPropertyItem extends Property {
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerKycStatus: import("./owner").OwnerVerificationStatus;
+  submittedAt?: string;
+  reviewedBy?: number | null;
+  reviewedAt?: string | null;
+  adminRemarks?: string | null;
+}

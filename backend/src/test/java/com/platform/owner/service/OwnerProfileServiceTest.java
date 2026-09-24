@@ -145,4 +145,104 @@ class OwnerProfileServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Owner profile not found");
     }
+
+    @Test
+    @DisplayName("submitForVerification transitions status to SUBMITTED when documents exist")
+    void testSubmitForVerificationSuccess() {
+        OwnerProfile profile = OwnerProfile.builder()
+                .id(5L)
+                .user(testUser)
+                .verificationStatus(com.platform.owner.entity.VerificationStatus.NOT_STARTED)
+                .build();
+
+        when(ownerProfileRepository.findByUserId(testUser.getId())).thenReturn(Optional.of(profile));
+        when(ownerProfileRepository.countDocumentsByOwnerProfileId(5L)).thenReturn(1L);
+        when(ownerProfileRepository.save(any(OwnerProfile.class))).thenAnswer(i -> i.getArgument(0));
+
+        OwnerProfileResponse response = ownerProfileService.submitForVerification(testUser.getId());
+
+        assertThat(response).isNotNull();
+        assertThat(response.getVerificationStatus()).isEqualTo(com.platform.owner.entity.VerificationStatus.SUBMITTED);
+        assertThat(profile.getVerificationStatus()).isEqualTo(com.platform.owner.entity.VerificationStatus.SUBMITTED);
+        verify(ownerProfileRepository).save(profile);
+    }
+
+    @Test
+    @DisplayName("submitForVerification transitions status from MORE_INFORMATION_REQUIRED to SUBMITTED")
+    void testSubmitForVerificationFromMoreInfoRequired() {
+        OwnerProfile profile = OwnerProfile.builder()
+                .id(5L)
+                .user(testUser)
+                .verificationStatus(com.platform.owner.entity.VerificationStatus.MORE_INFORMATION_REQUIRED)
+                .build();
+
+        when(ownerProfileRepository.findByUserId(testUser.getId())).thenReturn(Optional.of(profile));
+        when(ownerProfileRepository.countDocumentsByOwnerProfileId(5L)).thenReturn(2L);
+        when(ownerProfileRepository.save(any(OwnerProfile.class))).thenAnswer(i -> i.getArgument(0));
+
+        OwnerProfileResponse response = ownerProfileService.submitForVerification(testUser.getId());
+
+        assertThat(response).isNotNull();
+        assertThat(response.getVerificationStatus()).isEqualTo(com.platform.owner.entity.VerificationStatus.SUBMITTED);
+    }
+
+    @Test
+    @DisplayName("submitForVerification throws IllegalStateException when 0 documents uploaded")
+    void testSubmitForVerificationZeroDocuments() {
+        OwnerProfile profile = OwnerProfile.builder()
+                .id(5L)
+                .user(testUser)
+                .verificationStatus(com.platform.owner.entity.VerificationStatus.NOT_STARTED)
+                .build();
+
+        when(ownerProfileRepository.findByUserId(testUser.getId())).thenReturn(Optional.of(profile));
+        when(ownerProfileRepository.countDocumentsByOwnerProfileId(5L)).thenReturn(0L);
+
+        assertThatThrownBy(() -> ownerProfileService.submitForVerification(testUser.getId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("At least one identity or address proof document must be uploaded before submitting for verification");
+
+        verify(ownerProfileRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("submitForVerification throws IllegalStateException when already SUBMITTED or VERIFIED")
+    void testSubmitForVerificationInvalidStatus() {
+        OwnerProfile profile = OwnerProfile.builder()
+                .id(5L)
+                .user(testUser)
+                .verificationStatus(com.platform.owner.entity.VerificationStatus.SUBMITTED)
+                .build();
+
+        when(ownerProfileRepository.findByUserId(testUser.getId())).thenReturn(Optional.of(profile));
+        when(ownerProfileRepository.countDocumentsByOwnerProfileId(5L)).thenReturn(1L);
+
+        assertThatThrownBy(() -> ownerProfileService.submitForVerification(testUser.getId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Owner profile cannot be submitted for verification");
+
+        verify(ownerProfileRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("getVerificationStatus returns verification status, admin remarks, and verifiedAt")
+    void testGetVerificationStatusSuccess() {
+        Instant now = Instant.now();
+        OwnerProfile profile = OwnerProfile.builder()
+                .id(5L)
+                .user(testUser)
+                .verificationStatus(com.platform.owner.entity.VerificationStatus.VERIFIED)
+                .adminRemarks("All good")
+                .verifiedAt(now)
+                .build();
+
+        when(ownerProfileRepository.findByUserId(testUser.getId())).thenReturn(Optional.of(profile));
+
+        com.platform.owner.dto.OwnerVerificationStatusResponse response = ownerProfileService.getVerificationStatus(testUser.getId());
+
+        assertThat(response).isNotNull();
+        assertThat(response.getVerificationStatus()).isEqualTo(com.platform.owner.entity.VerificationStatus.VERIFIED);
+        assertThat(response.getAdminRemarks()).isEqualTo("All good");
+        assertThat(response.getVerifiedAt()).isEqualTo(now);
+    }
 }

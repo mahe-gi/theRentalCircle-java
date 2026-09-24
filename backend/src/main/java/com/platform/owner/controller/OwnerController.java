@@ -5,6 +5,7 @@ import com.platform.common.dto.ApiResponse;
 import com.platform.common.exception.ResourceNotFoundException;
 import com.platform.owner.dto.CreateOwnerProfileRequest;
 import com.platform.owner.dto.OwnerProfileResponse;
+import com.platform.owner.dto.OwnerVerificationStatusResponse;
 import com.platform.owner.service.OwnerProfileService;
 import com.platform.user.entity.User;
 import com.platform.user.repository.UserRepository;
@@ -46,5 +47,23 @@ public class OwnerController {
 
         OwnerProfileResponse response = ownerProfileService.getOwnerProfile(principal.getId());
         return ResponseEntity.ok(ApiResponse.success("Owner profile retrieved successfully", response));
+    }
+
+    @PostMapping("/verification/submit")
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<ApiResponse<OwnerProfileResponse>> submitForVerification(
+            @AuthenticationPrincipal UserPrincipal principal) {
+
+        OwnerProfileResponse response = ownerProfileService.submitForVerification(principal.getId());
+        return ResponseEntity.ok(ApiResponse.success("Owner verification submitted successfully", response));
+    }
+
+    @GetMapping("/verification/status")
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<ApiResponse<OwnerVerificationStatusResponse>> getVerificationStatus(
+            @AuthenticationPrincipal UserPrincipal principal) {
+
+        OwnerVerificationStatusResponse response = ownerProfileService.getVerificationStatus(principal.getId());
+        return ResponseEntity.ok(ApiResponse.success("Owner verification status retrieved successfully", response));
     }
 }

@@ -1,6 +1,7 @@
 package com.platform.property.entity;
 
 import com.platform.owner.entity.OwnerProfile;
+import com.platform.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -90,6 +91,16 @@ public class Property {
     @Column(nullable = false, length = 32)
     @Builder.Default
     private PropertyStatus status = PropertyStatus.DRAFT;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reviewed_by")
+    private User reviewedBy;
+
+    @Column(name = "reviewed_at")
+    private Instant reviewedAt;
+
+    @Column(name = "admin_remarks", columnDefinition = "TEXT")
+    private String adminRemarks;
 
     @Column(nullable = false, length = 100)
     private String state;

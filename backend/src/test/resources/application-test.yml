@@ -12,3 +12,5 @@ spring:
 app:
   upload:
     dir: target/test-uploads/properties
+  document:
+    dir: ${APP_DOCUMENT_DIR:./target/secure-docs}

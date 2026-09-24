@@ -31,5 +31,13 @@ public interface PropertyImageRepository extends JpaRepository<PropertyImage, Lo
     @Modifying
     @Query("DELETE FROM PropertyImage i WHERE i.property.id = :propertyId")
     void deleteByPropertyId(@Param("propertyId") Long propertyId);
+
+    @Modifying
+    @Query("UPDATE PropertyImage i SET i.isPrimary = false WHERE i.property.id = :propertyId")
+    void resetPrimaryForProperty(@Param("propertyId") Long propertyId);
+
+    @Modifying
+    @Query("UPDATE PropertyImage i SET i.isPrimary = true WHERE i.id = :imageId AND i.property.id = :propertyId")
+    int setPrimaryImage(@Param("propertyId") Long propertyId, @Param("imageId") Long imageId);
 }
 
