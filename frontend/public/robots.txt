@@ -1,0 +1,6 @@
+# RentalCircle Robots
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /owner/
+Disallow: /api/

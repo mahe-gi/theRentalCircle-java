@@ -1,0 +1,108 @@
+services:
+  postgres:
+    image: postgres:17.11-alpine
+    container_name: platform-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dev_rentalcircle}
+      POSTGRES_USER: ${POSTGRES_USER:-dev_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_insecure_password_replace_in_prod}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - platform-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dev_user} -d ${POSTGRES_DB:-dev_rentalcircle}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: platform-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-dev_rentalcircle}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-dev_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-dev_insecure_password_replace_in_prod}
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_key_minimum_32_characters_for_local_testing_only!}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-900000}
+      REFRESH_TOKEN_EXPIRATION_MS: ${REFRESH_TOKEN_EXPIRATION_MS:-604800000}
+      FILE_UPLOAD_DIR: /var/app/uploads
+      FILE_SECURE_DOCS_DIR: /var/app/secure-docs
+    ports:
+      - "8080:8080"
+    volumes:
+      - uploads_data:/var/app/uploads
+      - secure_docs_data:/var/app/secure-docs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - platform-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 25s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: platform-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - platform-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: platform-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - uploads_data:/var/app/uploads:ro
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - platform-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  postgres_data:
+  uploads_data:
+  secure_docs_data:
+
+networks:
+  platform-network:
+    driver: bridge

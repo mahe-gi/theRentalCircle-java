@@ -1,0 +1,10 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:dev_rentalcircle}
+    username: ${POSTGRES_USER:dev_user}
+    password: ${POSTGRES_PASSWORD:dev_insecure_password_replace_in_prod}
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: none
