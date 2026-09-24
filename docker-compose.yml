@@ -25,7 +25,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    image: platform-backend:latest
+    image: platform-backend:dev
     container_name: platform-backend
     restart: unless-stopped
     environment:
@@ -59,7 +59,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    image: platform-frontend:latest
+    image: platform-frontend:dev
     container_name: platform-frontend
     restart: unless-stopped
     environment:
@@ -83,7 +83,7 @@ services:
     build:
       context: ./nginx
       dockerfile: Dockerfile
-    image: platform-nginx:latest
+    image: platform-nginx:dev
     container_name: platform-nginx
     restart: unless-stopped
     ports:

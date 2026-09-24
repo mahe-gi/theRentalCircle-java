@@ -80,17 +80,17 @@ curl -f http://localhost/
 * **User Journey Unlocked**: Account creation, authenticated sessions, profile management.
 
 #### Tasks:
-- [ ] **TASK-201**: Write Flyway migration `V1__auth_and_users.sql` (`users`, `roles`, `user_roles`, `refresh_tokens`).
-- [ ] **TASK-202**: Implement Spring Security 6 filter chain, `JwtTokenProvider`, and stateless access JWT validation.
-- [ ] **TASK-203**: Implement `RefreshTokenService` with SHA-256 token hashing, database persistence, rotation, and strict reuse detection (revoking all sessions on reuse).
-- [ ] **TASK-204**: Implement `AuthController`:
+- [x] **TASK-201**: Write Flyway migration `V1__auth_and_users.sql` (`users`, `roles`, `user_roles`, `refresh_tokens`).
+- [x] **TASK-202**: Implement Spring Security 6 filter chain, `JwtTokenProvider`, and stateless access JWT validation.
+- [x] **TASK-203**: Implement `RefreshTokenService` with SHA-256 token hashing, database persistence, rotation, and strict reuse detection (revoking all sessions on reuse).
+- [x] **TASK-204**: Implement `AuthController`:
   * `POST /api/v1/auth/register` (BCrypt password hash, default `ROLE_USER`).
   * `POST /api/v1/auth/login` (Returns access JWT in JSON, sets refresh token in `HttpOnly; Secure; SameSite=Lax` cookie).
   * `POST /api/v1/auth/refresh` (Rotates refresh token in DB and cookie, returns new access JWT).
   * `POST /api/v1/auth/logout` (Revokes refresh token in DB, clears cookie).
   * `GET /api/v1/auth/me` (Returns authenticated user profile).
-- [ ] **TASK-205**: Implement `GlobalExceptionHandler` with standardized `ApiResponse<T>` / `ErrorResponse`.
-- [ ] **TASK-206**: Implement frontend client auth:
+- [x] **TASK-205**: Implement `GlobalExceptionHandler` with standardized `ApiResponse<T>` / `ErrorResponse`.
+- [x] **TASK-206**: Implement frontend client auth:
   * `src/lib/api-client.ts` with Axios request interceptor (attaches in-memory JWT) and response interceptor (automatic 401 refresh call).
   * Auth pages (`app/(auth)/login/page.tsx`, `app/(auth)/register/page.tsx`).
 

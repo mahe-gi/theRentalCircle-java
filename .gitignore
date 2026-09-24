@@ -25,6 +25,8 @@ frontend/out/
 frontend/build/
 frontend/dist/
 frontend/.turbo/
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
 
 # Logs
 logs/

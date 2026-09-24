@@ -46,7 +46,7 @@
 | Slice | Product Focus | Status | Next Milestone |
 |---|---|---|---|
 | **Slice 1: Foundation** | Runnable Skeleton & Docker Environment | `[x] COMPLETED` | All 4 containers healthy, Flyway ran, endpoints verified. |
-| **Slice 2: Authentication** | User Registration, JWT & Refresh Session | `[ ] TODO` | V1 Flyway migration, Spring Security filter chain. |
+| **Slice 2: Authentication** | User Registration, JWT & Refresh Session | `[x] COMPLETED` | 15/15 integration tests passed (registration, JWT, rotation, reuse-revocation, suspension). |
 | **Slice 3: Owner + Property** | Owner Onboarding, Draft Wizard & Photos | `[ ] TODO` | V2 & V4 migrations, property CRUD, photo uploads. |
 | **Slice 4: Trust Layer** | Verification Documents & Admin Moderation | `[ ] TODO` | V3 migration, secure doc storage, LIVE eligibility rule. |
 | **Slice 5: Discovery** | Search, Filters, Map & SSR Details | `[ ] TODO` | JPA search specifications, Leaflet map, details page. |
@@ -59,7 +59,45 @@
 ## 4. Active Checkpoint Log
 
 ```text
-[CHECKPOINT-20260924-07]
+[CHECKPOINT-20260924-08]
+- Timestamp: 2026-09-24T15:58:00+05:30
+- Phase: SLICE 2 — Authentication & User Identity COMPLETED
+- Status: 100% VERIFIED & OPERATIONAL
+- Verification Evidence:
+  1. Database Migration:
+     * Flyway executed `V1__auth_and_users.sql` cleanly to schema "public", now at version v1.
+     * Database contains exactly 4 canonical tables: `roles`, `users`, `user_roles`, `refresh_tokens`.
+     * `roles` seeded with `ROLE_USER`, `ROLE_OWNER`, `ROLE_ADMIN`.
+  2. Multi-Agent Specialist Delivery:
+     * Database Architect: `V1__auth_and_users.sql`.
+     * Session Specialist: `RefreshToken` entity, repository, and service with SHA-256 hashing.
+     * Backend Auth Specialist: Spring Security 6 stateless filter chain, `JwtTokenProvider`, `JwtAuthenticationFilter`, `AuthController`, and DTOs.
+     * Frontend Specialist: `api-client.ts` Axios interceptor with in-memory JWT & automatic 401 refresh, `auth-context.tsx`, and `/login` & `/register` editorial pages.
+     * QA Specialist: `scripts/test-slice-2.sh`.
+  3. Lead Integration & Fixes:
+     * Resolved transaction rollback isolation: configured `@Transactional(noRollbackFor = TokenRefreshException.class)` to commit session revocation on theft/reuse detection.
+     * Fixed proxy detachment: added `JOIN FETCH` to `RefreshTokenRepository.findByTokenHash` to eliminate `LazyInitializationException`.
+  4. End-to-End Automated Test Results (`scripts/test-slice-2.sh`):
+     * Total Checks Executed: 15
+     * Total Checks Passed:   15 (100%)
+     * Total Checks Failed:   0
+     * Tests verified:
+       - User registration (201 Created)
+       - User login with credentials (200 OK)
+       - Access JWT in JSON body & Refresh cookie in HttpOnly, Secure, SameSite=Lax flags
+       - Protected `/api/v1/auth/me` with Bearer token (200 OK)
+       - Unauthorized request rejection (401 Unauthorized)
+       - Session refresh & rotation (new JWT issued, refresh cookie rotated)
+       - Old refresh token rejection (401 Unauthorized)
+       - Token family revocation: active session revoked upon old token reuse attempt
+       - User suspension rejection: DB `is_active=false` live check blocks `/me` and `/refresh`
+       - User restoration: operations resume when `is_active=true`
+       - Logout: cookie cleared (`Max-Age=0`), token revoked in DB
+  5. Frontend SSR Verification:
+     * `curl http://localhost/login` -> 200 OK
+     * `curl http://localhost/register` -> 200 OK
+- Next Action: Ready for Slice 3 (Owner Onboarding & Property Creation).
+```
 - Timestamp: 2026-09-24T14:43:00+05:30
 - Phase: SLICE 1 — Foundation Audit, Cleanup & Zero-Brand Locking COMPLETED
 - Status: 100% CLEAN & VERIFIED
