@@ -864,6 +864,119 @@ else
 fi
 
 # ==============================================================================
+# 8. Real Account Deletion & KYC Physical File Purge
+# ==============================================================================
+log_step "Real Account Deletion & Physical KYC File Purge Pipeline"
+
+DEL_OWNER_EMAIL="slice4_del_owner_${RAND_ID}@example.com"
+DEL_OWNER_PW="Password123!"
+
+curl -s -X POST "${BASE_URL}/api/v1/auth/register" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"${DEL_OWNER_EMAIL}\",\"password\":\"${DEL_OWNER_PW}\",\"confirmPassword\":\"${DEL_OWNER_PW}\",\"firstName\":\"Karan\",\"lastName\":\"Kapoor\",\"userType\":\"LANDLORD\"}" >/dev/null
+
+DEL_LOGIN_BODY="${TMP_DIR}/del_login_body.json"
+curl -s -X POST "${BASE_URL}/api/v1/auth/login" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"${DEL_OWNER_EMAIL}\",\"password\":\"${DEL_OWNER_PW}\"}" \
+    -o "$DEL_LOGIN_BODY" >/dev/null
+DEL_TOKEN_INIT=$(jq -r '.data.accessToken // empty' "$DEL_LOGIN_BODY" 2>/dev/null || echo "")
+
+curl -s -X POST "${BASE_URL}/api/v1/owners/register" \
+    -H "Authorization: Bearer ${DEL_TOKEN_INIT}" \
+    -H "Content-Type: application/json" \
+    -d '{"ownershipType":"TITLE_OWNER","declarationAccepted":true}' >/dev/null
+
+curl -s -X POST "${BASE_URL}/api/v1/auth/login" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\":\"${DEL_OWNER_EMAIL}\",\"password\":\"${DEL_OWNER_PW}\"}" \
+    -o "${TMP_DIR}/del_owner_refresh_login.json" >/dev/null
+DEL_OWNER_TOKEN=$(jq -r '.data.accessToken // empty' "${TMP_DIR}/del_owner_refresh_login.json" 2>/dev/null || echo "")
+
+curl -s -X GET "${BASE_URL}/api/v1/owners/profile" \
+    -H "Authorization: Bearer ${DEL_OWNER_TOKEN}" \
+    -o "${TMP_DIR}/del_profile_body.json" >/dev/null
+DEL_OWNER_PROFILE_ID=$(jq -r '.data.id // empty' "${TMP_DIR}/del_profile_body.json" 2>/dev/null || echo "")
+
+# Upload a real document for this owner
+DEL_DOC_BODY="${TMP_DIR}/del_doc_body.json"
+curl -s -X POST "${BASE_URL}/api/v1/documents" \
+    -H "Authorization: Bearer ${DEL_OWNER_TOKEN}" \
+    -F "file=@${VALID_PDF};type=application/pdf" \
+    -F "documentType=IDENTITY_PROOF" \
+    -o "$DEL_DOC_BODY" >/dev/null
+DEL_DOC_ID=$(jq -r '.data.id // empty' "$DEL_DOC_BODY" 2>/dev/null || echo "")
+
+DEL_STORAGE_KEY=$(execute_db_sql "SELECT storage_key FROM documents WHERE id = ${DEL_DOC_ID};" | tr -d '[:space:]')
+
+# Verify physical file exists on disk inside container before deletion
+FILE_EXISTS_BEFORE=false
+if docker exec platform-backend test -f "/var/app/secure-docs/${DEL_STORAGE_KEY}" 2>/dev/null; then
+    FILE_EXISTS_BEFORE=true
+fi
+
+if [ "$FILE_EXISTS_BEFORE" = true ] && [ -n "$DEL_DOC_ID" ]; then
+    pass_test "Pre-Deletion KYC File Verification" "Document ID ${DEL_DOC_ID} and physical disk file /var/app/secure-docs/${DEL_STORAGE_KEY} confirmed present"
+else
+    fail_test "Pre-Deletion KYC File Verification" "File or document not found before deletion (docId=${DEL_DOC_ID}, key=${DEL_STORAGE_KEY})"
+fi
+
+# Execute account deletion (DELETE /api/v1/owners/account)
+HTTP_CODE_DEL_ACC=$(curl -s -X DELETE "${BASE_URL}/api/v1/owners/account" \
+    -H "Authorization: Bearer ${DEL_OWNER_TOKEN}" \
+    -o "${TMP_DIR}/del_acc_body.json" \
+    -w "%{http_code}")
+
+if [ "$HTTP_CODE_DEL_ACC" = "200" ]; then
+    pass_test "Account Deletion Endpoint" "HTTP 200 OK returned on DELETE /api/v1/owners/account"
+else
+    fail_test "Account Deletion Endpoint" "Expected HTTP 200, got ${HTTP_CODE_DEL_ACC}. Body: $(cat "${TMP_DIR}/del_acc_body.json")"
+fi
+
+# Verify physical KYC file is purged from disk
+FILE_EXISTS_AFTER=false
+if docker exec platform-backend test -f "/var/app/secure-docs/${DEL_STORAGE_KEY}" 2>/dev/null; then
+    FILE_EXISTS_AFTER=true
+fi
+
+if [ "$FILE_EXISTS_AFTER" = false ]; then
+    pass_test "Physical KYC File Purge on Erasure" "Physical file /var/app/secure-docs/${DEL_STORAGE_KEY} confirmed PURGED from disk"
+else
+    fail_test "Physical KYC File Purge on Erasure" "Physical file still exists on disk after account deletion!"
+fi
+
+# Verify document record removed from DB
+DOC_COUNT_AFTER=$(execute_db_sql "SELECT COUNT(*) FROM documents WHERE id = ${DEL_DOC_ID};" | tr -d '[:space:]')
+if [ "$DOC_COUNT_AFTER" = "0" ]; then
+    pass_test "Document Record Removal" "Document record ${DEL_DOC_ID} confirmed purged from database"
+else
+    fail_test "Document Record Removal" "Document record still present in DB (count=${DOC_COUNT_AFTER})"
+fi
+
+# Verify owner profile and user removed from DB
+OWNER_COUNT_AFTER=$(execute_db_sql "SELECT COUNT(*) FROM owner_profiles WHERE id = ${DEL_OWNER_PROFILE_ID};" | tr -d '[:space:]')
+USER_COUNT_AFTER=$(execute_db_sql "SELECT COUNT(*) FROM users WHERE email = '${DEL_OWNER_EMAIL}';" | tr -d '[:space:]')
+if [ "$OWNER_COUNT_AFTER" = "0" ] && [ "$USER_COUNT_AFTER" = "0" ]; then
+    pass_test "Owner & User Data Erasure" "Owner profile ${DEL_OWNER_PROFILE_ID} and user ${DEL_OWNER_EMAIL} completely purged from database"
+else
+    fail_test "Owner & User Data Erasure" "Owner or user record still present (owner=${OWNER_COUNT_AFTER}, user=${USER_COUNT_AFTER})"
+fi
+
+# ==============================================================================
+# 9. Document Association Database Invariant (CHECK owner OR property IS NOT NULL)
+# ==============================================================================
+log_step "Document Association Database Invariant (chk_documents_association)"
+
+SQL_TEST_ORPHAN="INSERT INTO documents (owner_profile_id, property_id, document_type, storage_key, original_filename, file_size_bytes, content_type) VALUES (NULL, NULL, 'IDENTITY_PROOF', 'orphan_key_${RAND_ID}', 'test.pdf', 100, 'application/pdf');"
+SQL_ORPHAN_RESULT=$(execute_db_sql "$SQL_TEST_ORPHAN" 2>&1 || true)
+
+if echo "$SQL_ORPHAN_RESULT" | grep -qi "chk_documents_association"; then
+    pass_test "Document Association Invariant" "PostgreSQL check constraint chk_documents_association rejected insert with both owner_profile_id and property_id NULL"
+else
+    fail_test "Document Association Invariant" "Expected chk_documents_association violation, got: ${SQL_ORPHAN_RESULT}"
+fi
+
+# ==============================================================================
 # 8. Summary Report
 # ==============================================================================
 log_header "Slice 4 Test Execution Summary"

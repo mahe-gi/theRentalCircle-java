@@ -31,6 +31,8 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
     @Query("UPDATE Property p SET p.status = :newStatus, p.reviewedBy = :admin, p.reviewedAt = :now, p.adminRemarks = :remarks, p.updatedAt = :now WHERE p.id = :id AND p.status IN ('SUBMITTED', 'UNDER_REVIEW')")
     int updatePropertyStatusIfInReview(@Param("id") Long id, @Param("newStatus") PropertyStatus newStatus, @Param("admin") User admin, @Param("now") Instant now, @Param("remarks") String remarks);
 
+    List<Property> findByOwnerProfileId(Long ownerProfileId);
+
     List<Property> findByOwnerProfileIdAndStatus(Long ownerProfileId, PropertyStatus status);
 
     Page<Property> findAllByStatus(PropertyStatus status, Pageable pageable);

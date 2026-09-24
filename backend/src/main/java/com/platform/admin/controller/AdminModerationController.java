@@ -90,6 +90,23 @@ public class AdminModerationController {
         return ResponseEntity.ok(ApiResponse.success("Requested more information from owner", response));
     }
 
+    @DeleteMapping("/owners/{id}")
+    public ResponseEntity<ApiResponse<Void>> purgeOwnerAccount(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody(required = false) ModerationDecisionRequest request) {
+
+        User admin = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Admin user not found with ID: " + principal.getId()));
+
+        String remarks = (request != null && request.getRemarks() != null)
+                ? request.getRemarks()
+                : "Owner account purged upon erasure request";
+
+        adminModerationService.purgeOwnerAccount(id, admin, remarks);
+        return ResponseEntity.ok(ApiResponse.success("Owner account and KYC documents permanently purged", null));
+    }
+
     @GetMapping("/properties")
     public ResponseEntity<ApiResponse<Page<PropertyResponse>>> listProperties(
             @RequestParam(required = false) PropertyStatus status,

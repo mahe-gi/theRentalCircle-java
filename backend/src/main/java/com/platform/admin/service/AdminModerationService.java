@@ -8,6 +8,7 @@ import com.platform.owner.dto.OwnerProfileResponse;
 import com.platform.owner.entity.OwnerProfile;
 import com.platform.owner.entity.VerificationStatus;
 import com.platform.owner.repository.OwnerProfileRepository;
+import com.platform.owner.service.OwnerProfileService;
 import com.platform.property.dto.PropertyDetailResponse;
 import com.platform.property.dto.PropertyResponse;
 import com.platform.property.entity.Property;
@@ -32,6 +33,7 @@ public class AdminModerationService {
     private final OwnerProfileRepository ownerProfileRepository;
     private final PropertyRepository propertyRepository;
     private final AdminActionRepository adminActionRepository;
+    private final OwnerProfileService ownerProfileService;
 
     /**
      * Common engine: attemptTransitionToLive(Property property)
@@ -246,5 +248,25 @@ public class AdminModerationService {
         Property property = propertyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found with ID: " + id));
         return PropertyDetailResponse.fromEntity(property);
+    }
+
+    @Transactional
+    public void purgeOwnerAccount(Long ownerProfileId, User admin, String remarks) {
+        OwnerProfile profile = ownerProfileRepository.findById(ownerProfileId)
+                .orElseThrow(() -> new ResourceNotFoundException("Owner profile not found with ID: " + ownerProfileId));
+
+        Long userId = profile.getUser().getId();
+
+        AdminAction action = AdminAction.builder()
+                .admin(admin)
+                .action("PURGE_OWNER_ACCOUNT")
+                .targetType("OWNER")
+                .targetId(ownerProfileId)
+                .details("Admin purged owner account and KYC documents. Remarks: " + remarks)
+                .build();
+        adminActionRepository.save(action);
+
+        ownerProfileService.deleteOwnerAccount(userId);
+        log.info("Admin id: {} purged owner profile id: {} and user id: {}", admin.getId(), ownerProfileId, userId);
     }
 }

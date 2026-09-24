@@ -66,4 +66,13 @@ public class OwnerController {
         OwnerVerificationStatusResponse response = ownerProfileService.getVerificationStatus(principal.getId());
         return ResponseEntity.ok(ApiResponse.success("Owner verification status retrieved successfully", response));
     }
+
+    @DeleteMapping("/account")
+    @PreAuthorize("hasRole('OWNER')")
+    public ResponseEntity<ApiResponse<Void>> deleteOwnerAccount(
+            @AuthenticationPrincipal UserPrincipal principal) {
+
+        ownerProfileService.deleteOwnerAccount(principal.getId());
+        return ResponseEntity.ok(ApiResponse.success("Owner account and all associated documents permanently deleted", null));
+    }
 }

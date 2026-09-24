@@ -40,6 +40,18 @@ class OwnerProfileServiceTest {
     @Mock
     private RoleRepository roleRepository;
 
+    @Mock
+    private com.platform.document.service.DocumentCleanupService documentCleanupService;
+
+    @Mock
+    private com.platform.property.repository.PropertyRepository propertyRepository;
+
+    @Mock
+    private com.platform.property.service.PropertyImageService propertyImageService;
+
+    @Mock
+    private com.platform.auth.repository.RefreshTokenRepository refreshTokenRepository;
+
     @InjectMocks
     private OwnerProfileService ownerProfileService;
 
@@ -244,5 +256,25 @@ class OwnerProfileServiceTest {
         assertThat(response.getVerificationStatus()).isEqualTo(com.platform.owner.entity.VerificationStatus.VERIFIED);
         assertThat(response.getAdminRemarks()).isEqualTo("All good");
         assertThat(response.getVerifiedAt()).isEqualTo(now);
+    }
+
+    @Test
+    @DisplayName("deleteOwnerAccount executes complete KYC cleanup: purges files, deletes records, removes owner profile and user")
+    void deleteOwnerAccount_Success() {
+        OwnerProfile profile = OwnerProfile.builder()
+                .id(10L)
+                .user(testUser)
+                .build();
+
+        when(ownerProfileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
+        when(documentCleanupService.purgeAllDocumentsForOwnerProfile(10L)).thenReturn(2);
+        when(propertyRepository.findByOwnerProfileId(10L)).thenReturn(java.util.List.of());
+
+        ownerProfileService.deleteOwnerAccount(1L);
+
+        verify(documentCleanupService).purgeAllDocumentsForOwnerProfile(10L);
+        verify(refreshTokenRepository).revokeAllByUserId(eq(1L), any());
+        verify(ownerProfileRepository).delete(profile);
+        verify(userRepository).delete(testUser);
     }
 }

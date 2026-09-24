@@ -37,6 +37,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import com.platform.admin.entity.AdminAction;
+import com.platform.admin.repository.AdminActionRepository;
+import com.platform.owner.service.OwnerProfileService;
+
 @ExtendWith(MockitoExtension.class)
 class AdminModerationServiceTest {
 
@@ -45,6 +49,12 @@ class AdminModerationServiceTest {
 
     @Mock
     private PropertyRepository propertyRepository;
+
+    @Mock
+    private AdminActionRepository adminActionRepository;
+
+    @Mock
+    private OwnerProfileService ownerProfileService;
 
     @InjectMocks
     private AdminModerationService adminModerationService;
@@ -457,5 +467,16 @@ class AdminModerationServiceTest {
         assertThatThrownBy(() -> adminModerationService.getProperty(999L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Property not found with ID: 999");
+    }
+
+    @Test
+    @DisplayName("purgeOwnerAccount records admin action and calls ownerProfileService.deleteOwnerAccount")
+    void purgeOwnerAccount_Success() {
+        when(ownerProfileRepository.findById(10L)).thenReturn(Optional.of(testOwnerProfile));
+
+        adminModerationService.purgeOwnerAccount(10L, adminUser, "User requested GDPR erasure");
+
+        verify(adminActionRepository).save(any(AdminAction.class));
+        verify(ownerProfileService).deleteOwnerAccount(testOwnerProfile.getUser().getId());
     }
 }

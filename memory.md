@@ -60,13 +60,14 @@
 
 ```text
 [CHECKPOINT-20260924-11]
-- Timestamp: 2026-09-24T18:17:00+05:30
-- Phase: SLICE 4 — Trust Layer (KYC Verification, Private Storage & Admin Moderation) COMPLETED
+- Timestamp: 2026-09-24T19:08:00+05:30
+- Phase: SLICE 4 — Trust Layer (KYC Verification, Private Storage, Retention & Admin Moderation) 100% FROZEN
 - Status: 100% VERIFIED & FROZEN
 - Verification Evidence:
-  1. Database Migration:
+  1. Database Migration & Constraints:
      * `V4__verification_documents.sql` executed cleanly against PostgreSQL 17.11.
      * Tables `documents` and `admin_actions` created with explicit foreign keys. Canonical 17-table schema strictly preserved.
+     * Table `documents` association constraint strictly enforced: `chk_documents_association CHECK (owner_profile_id IS NOT NULL OR property_id IS NOT NULL)`. Verified rejection on orphan insert attempts.
      * `owner_profiles` expanded with `verification_status` ('NOT_STARTED', 'SUBMITTED', 'UNDER_REVIEW', 'MORE_INFORMATION_REQUIRED', 'VERIFIED', 'REJECTED'), `verified_by`, `verified_at`, `admin_remarks` (zero plaintext PAN/Aadhaar columns).
      * `properties` status constraint expanded to include 'MORE_INFORMATION_REQUIRED', 'UNDER_REVIEW', 'APPROVED', 'LIVE', 'REJECTED', 'SUSPENDED'; added `reviewed_by`, `reviewed_at`, `admin_remarks`.
      * Partial unique index `uq_property_primary_image` active on `property_images(property_id) WHERE is_primary = TRUE`.
@@ -75,7 +76,8 @@
      * 20MB file limit and magic byte inspection (%PDF, JPEG, PNG) strictly enforced.
      * Streaming download via `GET /api/v1/documents/{id}/download` enforcing owner or admin access, with `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, and `Content-Disposition: attachment`.
      * Sensitive administrative document downloads automatically record append-only audit entries in `admin_actions`.
-     * Executable retention cleanup service (`DocumentCleanupService`) implemented for 30-day purge of rejected documents and complete erasure for account deletion.
+     * Retention & account erasure pipeline: `OwnerProfileService.deleteOwnerAccount` invoked via `DELETE /api/v1/owners/account` and `DELETE /api/v1/admin/owners/{id}` executes:
+       Delete owner account ➔ purge physical KYC files ➔ remove document records ➔ clean property images ➔ remove owner/user data. Verified physical file purged from disk.
   3. Golden Invariant & Deterministic LIVE State Machine:
      * Common transition engine: `attemptTransitionToLive(Property)` strictly enforces that a listing transitions to `LIVE` only when `owner.verificationStatus == VERIFIED AND property.status == APPROVED`.
      * Trigger A verified: Approving an unverified owner's property sets status to `APPROVED`, NOT `LIVE`. Later verifying the owner automatically transitions the property from `APPROVED ➔ LIVE`.
@@ -87,10 +89,11 @@
      * `/admin/owners` & `/admin/properties`: moderation queues, review drawers with confidential access warnings, Approve/Reject/Request Info modals with mandatory remarks.
      * Verified with 0 TypeScript compilation errors (`npx tsc --noEmit`).
   6. Automated Test Suites:
-     * `scripts/test-slice-4.sh`: 27/27 passed (100%).
+     * `scripts/test-slice-4.sh`: 33/33 passed (100%).
      * `scripts/test-slice-3.sh`: 20/20 passed (100% - zero regressions).
      * `scripts/test-slice-2.sh`: 16/16 passed (100% - zero regressions).
-- Next Action: Slice 5 Planning & Discovery / Public Search Architecture.
+     * Total regression suite: 69/69 checks passed.
+- Next Action: Slice 5 Launch (Discovery & Search / Map / SSR Public Marketplace).
 ```
 
 ```text

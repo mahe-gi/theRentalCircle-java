@@ -1,6 +1,6 @@
 CREATE TABLE documents (
     id BIGSERIAL PRIMARY KEY,
-    owner_profile_id BIGINT NOT NULL REFERENCES owner_profiles(id) ON DELETE CASCADE,
+    owner_profile_id BIGINT REFERENCES owner_profiles(id) ON DELETE CASCADE,
     property_id BIGINT REFERENCES properties(id) ON DELETE SET NULL,
     document_type VARCHAR(64) NOT NULL,
     storage_key VARCHAR(255) NOT NULL UNIQUE,
@@ -10,7 +10,8 @@ CREATE TABLE documents (
     status VARCHAR(32) NOT NULL DEFAULT 'UPLOADED' CHECK (status IN ('UPLOADED', 'UNDER_REVIEW', 'VERIFIED', 'REJECTED')),
     rejection_reason TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_documents_association CHECK (owner_profile_id IS NOT NULL OR property_id IS NOT NULL)
 );
 
 CREATE TABLE admin_actions (
