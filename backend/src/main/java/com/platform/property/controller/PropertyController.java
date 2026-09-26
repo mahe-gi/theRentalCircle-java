@@ -4,6 +4,9 @@ import com.platform.auth.security.UserPrincipal;
 import com.platform.common.dto.ApiResponse;
 import com.platform.common.exception.ResourceNotFoundException;
 import com.platform.property.dto.*;
+import com.platform.property.entity.Property;
+import com.platform.property.entity.PropertyStatus;
+import com.platform.property.repository.PropertyRepository;
 import com.platform.property.service.PropertyService;
 import com.platform.user.entity.User;
 import com.platform.user.repository.UserRepository;
@@ -23,14 +26,15 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/properties")
-@PreAuthorize("hasRole('OWNER')")
 @RequiredArgsConstructor
 public class PropertyController {
 
     private final PropertyService propertyService;
+    private final PropertyRepository propertyRepository;
     private final UserRepository userRepository;
 
     @PostMapping
+    @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<ApiResponse<PropertyDetailResponse>> createDraft(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody CreatePropertyRequest request) {
@@ -44,15 +48,16 @@ public class PropertyController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<PropertyDetailResponse>> getProperty(
+    public ResponseEntity<ApiResponse<Object>> getProperty(
             @PathVariable("id") Long id,
             @AuthenticationPrincipal UserPrincipal principal) {
 
-        PropertyDetailResponse response = propertyService.getOwnerProperty(id, principal.getId());
+        Object response = propertyService.getProperty(id, principal);
         return ResponseEntity.ok(ApiResponse.success("Property retrieved successfully", response));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<ApiResponse<PropertyDetailResponse>> updateDraft(
             @PathVariable("id") Long id,
             @AuthenticationPrincipal UserPrincipal principal,
@@ -63,6 +68,7 @@ public class PropertyController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<ApiResponse<Void>> deleteProperty(
             @PathVariable("id") Long id,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -72,6 +78,7 @@ public class PropertyController {
     }
 
     @PutMapping("/{id}/submit")
+    @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<ApiResponse<PropertyDetailResponse>> submitProperty(
             @PathVariable("id") Long id,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -81,6 +88,7 @@ public class PropertyController {
     }
 
     @GetMapping("/my")
+    @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<ApiResponse<Page<PropertyResponse>>> listOwnerProperties(
             @RequestParam(required = false) String status,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,

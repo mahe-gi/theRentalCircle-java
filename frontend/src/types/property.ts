@@ -111,3 +111,104 @@ export interface AdminPropertyItem extends Property {
   reviewedAt?: string | null;
   adminRemarks?: string | null;
 }
+
+export interface PropertySearchResult {
+  id: number;
+  title: string;
+  listingType: "RENT" | "SALE";
+  propertyType: string;
+  price: number;
+  maintenanceCharges?: number;
+  bhk?: number | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  carpetArea?: number | null;
+  furnishing?: string | null;
+  city: string;
+  district: string;
+  locality: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  primaryImageUrl?: string | null;
+  amenities: string[];
+  availabilityDate?: string | null;
+  createdAt: string;
+}
+
+export interface SearchFilters {
+  listingType?: "RENT" | "SALE";
+  propertyType?: string;
+  city?: string;
+  district?: string;
+  locality?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  bhk?: number[];
+  furnishing?: string;
+  amenities?: string[];
+  minArea?: number;
+  maxArea?: number;
+  minLat?: number;
+  maxLat?: number;
+  minLng?: number;
+  maxLng?: number;
+  sort?: "NEWEST" | "PRICE_ASC" | "PRICE_DESC";
+  page?: number;
+  size?: number;
+}
+
+export interface PagedResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+}
+
+export interface PublicPropertyDetail {
+  id: number;
+  title: string;
+  listingType: "RENT" | "SALE";
+  propertyType: string;
+  price: number;
+  maintenanceCharges?: number;
+  securityDeposit?: number;
+  bhk?: number | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  carpetArea?: number | null;
+  builtUpArea?: number | null;
+  furnishing?: string | null;
+  floorNumber?: number | null;
+  totalFloors?: number | null;
+  description?: string;
+  preferredTenant?: string;
+  availabilityDate?: string | null;
+  state: string;
+  city: string;
+  district: string;
+  locality: string;
+  pincode: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  amenities: string[];
+  images: Array<{
+    id: number;
+    url: string;
+    displayOrder: number;
+    isPrimary: boolean;
+  }>;
+  owner?: {
+    ownershipType?: string;
+    verifiedBadge?: boolean;
+  };
+  createdAt: string;
+}
+
+export interface LocationSuggestionsResponse {
+  cities: string[];
+  districts: string[];
+  localities: string[];
+}
+

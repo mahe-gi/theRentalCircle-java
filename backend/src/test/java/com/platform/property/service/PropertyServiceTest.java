@@ -254,7 +254,7 @@ class PropertyServiceTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Only DRAFT properties can be deleted");
 
-        verify(propertyRepository, never()).delete(any());
+        verify(propertyRepository, never()).delete(any(Property.class));
     }
 
     @Test

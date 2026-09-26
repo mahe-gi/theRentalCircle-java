@@ -75,6 +75,12 @@ export function Navbar() {
         {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-charcoal">
           <Link
+            href="/properties"
+            className="hover:text-forest transition-colors font-semibold text-forest"
+          >
+            Search Properties
+          </Link>
+          <Link
             href="/#discovery"
             className="hover:text-forest transition-colors"
           >

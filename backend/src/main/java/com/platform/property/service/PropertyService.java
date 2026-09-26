@@ -80,6 +80,40 @@ public class PropertyService {
         return PropertyDetailResponse.fromEntity(property);
     }
 
+    @Transactional(readOnly = true)
+    public Object getProperty(Long id, com.platform.auth.security.UserPrincipal principal) {
+        Property property = propertyRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Property not found with ID: " + id));
+
+        // Unauthenticated public request
+        if (principal == null) {
+            if (property.getStatus() != PropertyStatus.LIVE) {
+                throw new ResourceNotFoundException("Property not found with ID: " + id);
+            }
+            return PublicPropertyDetailResponse.fromEntity(property);
+        }
+
+        // Admin caller: full detail
+        boolean isAdmin = principal.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (isAdmin) {
+            return PropertyDetailResponse.fromEntity(property);
+        }
+
+        // Owner of this property: full detail
+        boolean isOwner = property.getOwnerProfile() != null &&
+                property.getOwnerProfile().getUser().getId().equals(principal.getId());
+        if (isOwner) {
+            return PropertyDetailResponse.fromEntity(property);
+        }
+
+        // Authenticated non-owner, non-admin user
+        if (property.getStatus() != PropertyStatus.LIVE) {
+            throw new ResourceNotFoundException("Property not found with ID: " + id);
+        }
+        return PublicPropertyDetailResponse.fromEntity(property);
+    }
+
     @Transactional
     public PropertyDetailResponse updateDraft(Long propertyId, Long userId, UpdatePropertyRequest req) {
         Property property = propertyRepository.findByIdAndOwnerProfileUserId(propertyId, userId)

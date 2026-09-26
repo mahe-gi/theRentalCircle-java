@@ -4,6 +4,7 @@ import com.platform.auth.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -53,7 +54,8 @@ public class SecurityConfig {
                     "/api/v1/auth/logout"
                 ).permitAll()
                 .requestMatchers("/api/v1/auth/me").authenticated()
-                .requestMatchers("/api/v1/properties/search/**").permitAll()
+                .requestMatchers("/api/v1/properties/search", "/api/v1/properties/search/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/properties/*").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
