@@ -21,10 +21,22 @@ import {
   Save,
   Check,
   Image as ImageIcon,
+  Navigation,
+  Loader2,
+  RefreshCw,
+  Search,
 } from "lucide-react";
 import { Navbar } from "@/components/navbar";
 import { useAuth } from "@/lib/auth-context";
 import { apiClient } from "@/lib/api-client";
+import {
+  INDIAN_STATES,
+  STATE_DISTRICTS_MAP,
+  lookupPincode,
+  geocodeLocation,
+  getCurrentBrowserLocation,
+} from "@/lib/india-locations";
+import { MiniMap } from "@/components/map/MiniMap";
 import {
   Property,
   PropertyFormData,
@@ -57,10 +69,12 @@ const INITIAL_FORM_DATA: PropertyFormData = {
   // Step 3: Location
   state: "Karnataka",
   city: "Bangalore",
-  district: "Bangalore Urban",
+  district: "Bengaluru Urban",
   locality: "Indiranagar",
   address: "",
-  pincode: "",
+  pincode: "560038",
+  latitude: 12.9733,
+  longitude: 77.6405,
 
   // Step 4: Amenities & Rules
   furnishing: "SEMI_FURNISHED",
@@ -106,6 +120,15 @@ function PropertyCreationWizard() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showSubmissionSuccess, setShowSubmissionSuccess] = useState(false);
 
+  // Step 3 Location helpers & state
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [isLookingUpPin, setIsLookingUpPin] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [localitySuggestions, setLocalitySuggestions] = useState<string[]>([]);
+  const [locationStatusMessage, setLocationStatusMessage] = useState<string | null>(null);
+  const [stateSearchQuery, setStateSearchQuery] = useState("");
+  const [districtSearchQuery, setDistrictSearchQuery] = useState("");
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load existing property if editing an existing draft
@@ -136,10 +159,12 @@ function PropertyCreationWizard() {
                 new Date().toISOString().split("T")[0],
               state: property.state || "Karnataka",
               city: property.city || "Bangalore",
-              district: property.district || "Bangalore Urban",
+              district: property.district || "Bengaluru Urban",
               locality: property.locality || "",
               address: property.address || "",
               pincode: property.pincode || "",
+              latitude: property.latitude || 12.9733,
+              longitude: property.longitude || 77.6405,
               furnishing: property.furnishing || "SEMI_FURNISHED",
               preferredTenant: property.preferredTenant || "ANY",
               amenities: property.amenities || [
@@ -162,6 +187,201 @@ function PropertyCreationWizard() {
       fetchProperty();
     }
   }, [existingId, isAuthenticated]);
+
+  // Handle PIN Code auto-lookup
+  const handlePincodeChange = async (newPin: string) => {
+    updateField("pincode", newPin);
+    if (/^[1-9][0-9]{5}$/.test(newPin.trim())) {
+      setIsLookingUpPin(true);
+      setLocationStatusMessage("Looking up postal records for PIN " + newPin.trim() + "...");
+      try {
+        const result = await lookupPincode(newPin.trim());
+        if (result.success && result.state) {
+          setFormData((prev) => ({
+            ...prev,
+            pincode: newPin.trim(),
+            state: result.state || prev.state,
+            district: result.district || prev.district,
+            city: result.city || prev.city || result.district || "",
+          }));
+          if (result.localities.length > 0) {
+            setLocalitySuggestions(result.localities);
+          }
+          setLocationStatusMessage(
+            `Postal data loaded: ${result.district}, ${result.state} (${result.localities.length} localities detected)`
+          );
+
+          // Geocode with latest details
+          const geo = await geocodeLocation({
+            locality: formData.locality || result.localities[0],
+            city: result.city || result.district,
+            district: result.district,
+            state: result.state,
+            pincode: newPin.trim(),
+          });
+          if (geo) {
+            setFormData((prev) => ({
+              ...prev,
+              latitude: geo.latitude,
+              longitude: geo.longitude,
+            }));
+          }
+        } else {
+          setLocationStatusMessage(
+            result.message || "Postal lookup returned no match. You may enter details manually."
+          );
+        }
+      } catch (err) {
+        console.warn("Pincode lookup error:", err);
+      } finally {
+        setIsLookingUpPin(false);
+      }
+    }
+  };
+
+  // Handle State selection change
+  const handleStateChange = async (newState: string) => {
+    const districts = STATE_DISTRICTS_MAP[newState] || [];
+    const validCurrentDistrict = districts.includes(formData.district);
+    const updatedDistrict = validCurrentDistrict ? formData.district : (districts[0] || "");
+    const updatedCity = validCurrentDistrict ? formData.city : updatedDistrict;
+
+    setFormData((prev) => ({
+      ...prev,
+      state: newState,
+      district: updatedDistrict,
+      city: updatedCity,
+    }));
+    setDistrictSearchQuery("");
+
+    setIsGeocoding(true);
+    try {
+      const geo = await geocodeLocation({
+        locality: formData.locality,
+        city: updatedCity,
+        district: updatedDistrict,
+        state: newState,
+        pincode: formData.pincode,
+      });
+      if (geo) {
+        setFormData((prev) => ({
+          ...prev,
+          latitude: geo.latitude,
+          longitude: geo.longitude,
+        }));
+      }
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
+
+  // Handle District selection change
+  const handleDistrictChange = async (newDistrict: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      district: newDistrict,
+      city: prev.city || newDistrict,
+    }));
+
+    setIsGeocoding(true);
+    try {
+      const geo = await geocodeLocation({
+        locality: formData.locality,
+        city: formData.city || newDistrict,
+        district: newDistrict,
+        state: formData.state,
+        pincode: formData.pincode,
+      });
+      if (geo) {
+        setFormData((prev) => ({
+          ...prev,
+          latitude: geo.latitude,
+          longitude: geo.longitude,
+        }));
+      }
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
+
+  // Handle Locality select / click
+  const handleLocalitySelect = async (loc: string) => {
+    updateField("locality", loc);
+    setIsGeocoding(true);
+    try {
+      const geo = await geocodeLocation({
+        locality: loc,
+        city: formData.city,
+        district: formData.district,
+        state: formData.state,
+        pincode: formData.pincode,
+      });
+      if (geo) {
+        setFormData((prev) => ({
+          ...prev,
+          latitude: geo.latitude,
+          longitude: geo.longitude,
+        }));
+      }
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
+
+  // Handle GPS / Browser Location auto-detection
+  const handleDetectLocation = async () => {
+    setIsDetectingLocation(true);
+    setLocationStatusMessage("Detecting your location & administrative division...");
+    try {
+      const loc = await getCurrentBrowserLocation();
+      setFormData((prev) => ({
+        ...prev,
+        state: loc.state || prev.state,
+        district: loc.district || prev.district,
+        city: loc.city || prev.city,
+        locality: loc.locality || prev.locality,
+        address: prev.address || loc.address || "",
+        pincode: loc.pincode || prev.pincode,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+      }));
+      setLocationStatusMessage(
+        `✓ Detected: ${loc.locality ? loc.locality + ", " : ""}${loc.district || loc.city}, ${loc.state}`
+      );
+    } catch (err: any) {
+      setLocationStatusMessage(err.message || "Failed to detect location. Please select manually.");
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  };
+
+  // Handle Refresh Map Coordinates
+  const handleRefreshCoordinates = async () => {
+    setIsGeocoding(true);
+    setLocationStatusMessage("Pinpointing property coordinates on map...");
+    try {
+      const geo = await geocodeLocation({
+        address: formData.address,
+        locality: formData.locality,
+        city: formData.city,
+        district: formData.district,
+        state: formData.state,
+        pincode: formData.pincode,
+      });
+      if (geo) {
+        setFormData((prev) => ({
+          ...prev,
+          latitude: geo.latitude,
+          longitude: geo.longitude,
+        }));
+        setLocationStatusMessage(`✓ Coordinates updated: ${geo.displayName}`);
+      } else {
+        setLocationStatusMessage("Could not pinpoint exact address. Approximate center used.");
+      }
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
 
   // Form field update helper
   const updateField = <K extends keyof PropertyFormData>(
@@ -836,102 +1056,202 @@ function PropertyCreationWizard() {
             </div>
           )}
 
-          {/* ================= STEP 3: LOCATION ================= */}
+          {/* ================= STEP 3: LOCATION & ADMINISTRATIVE DIVISIONS ================= */}
           {currentStep === 3 && (
             <div className="space-y-6 animate-in fade-in duration-150">
-              <div>
-                <h2 className="font-serif text-2xl font-bold text-charcoal">
-                  Property Location &amp; Address
-                </h2>
-                <p className="text-xs sm:text-sm text-charcoal-light mt-1">
-                  Accurate neighborhood and district details enable tenants to pinpoint your home on the marketplace map.
-                </p>
-              </div>
-
-              {/* State, City, District */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-charcoal">
-                    State <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.state}
-                    onChange={(e) => updateField("state", e.target.value)}
-                    placeholder="e.g. Karnataka"
-                    className="w-full px-4 py-3 bg-white border border-[#DDD8CE] rounded-xl text-sm text-charcoal focus:outline-none focus:border-forest"
-                  />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h2 className="font-serif text-2xl font-bold text-charcoal">
+                    Property Location &amp; Address
+                  </h2>
+                  <p className="text-xs sm:text-sm text-charcoal-light mt-1">
+                    Select genuine Indian administrative divisions or auto-detect your location for authentic map discovery.
+                  </p>
                 </div>
 
+                {/* Auto-detect button */}
+                <button
+                  type="button"
+                  onClick={handleDetectLocation}
+                  disabled={isDetectingLocation}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-forest/10 hover:bg-forest/20 text-forest font-bold text-xs rounded-xl transition border border-forest/20 shadow-sm disabled:opacity-50 self-start sm:self-auto"
+                >
+                  {isDetectingLocation ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Navigation className="w-4 h-4" />
+                  )}
+                  {isDetectingLocation ? "Detecting Location..." : "Auto-Detect My Location"}
+                </button>
+              </div>
+
+              {/* Status message banner */}
+              {locationStatusMessage && (
+                <div className="p-3 bg-forest/5 border border-forest/20 rounded-xl flex items-center justify-between text-xs text-forest">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 flex-shrink-0 text-amber" />
+                    <span>{locationStatusMessage}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setLocationStatusMessage(null)}
+                    className="text-charcoal-light hover:text-charcoal text-[11px] font-bold ml-2"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
+              {/* Postal PIN Code Quick Lookup */}
+              <div className="p-4 bg-[#FBF9F5] border border-[#DDD8CE] rounded-2xl space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-charcoal">
+                    Postal PIN Code <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[11px] text-charcoal-light">
+                    Typing 6 digits automatically populates State, District &amp; Localities
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      required
+                      maxLength={6}
+                      value={formData.pincode}
+                      onChange={(e) => handlePincodeChange(e.target.value)}
+                      placeholder="e.g. 560038"
+                      className="w-full pl-4 pr-10 py-3 bg-white border border-[#DDD8CE] rounded-xl text-sm font-bold text-charcoal focus:outline-none focus:border-forest tracking-wider"
+                    />
+                    {isLookingUpPin && (
+                      <div className="absolute right-3 top-3 text-forest">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handlePincodeChange(formData.pincode)}
+                    disabled={isLookingUpPin || !formData.pincode || formData.pincode.length !== 6}
+                    className="px-4 py-3 bg-forest text-white text-xs font-bold rounded-xl hover:bg-forest/90 transition disabled:opacity-40"
+                  >
+                    Lookup PIN
+                  </button>
+                </div>
+              </div>
+
+              {/* Cascading State, District, City */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* State Dropdown */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold uppercase tracking-wider text-charcoal">
-                    City <span className="text-red-500">*</span>
+                    State / UT <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.state}
+                    onChange={(e) => handleStateChange(e.target.value)}
+                    className="w-full px-4 py-3 bg-white border border-[#DDD8CE] rounded-xl text-sm text-charcoal font-medium focus:outline-none focus:border-forest cursor-pointer"
+                  >
+                    <option value="" disabled>Select State / UT</option>
+                    {INDIAN_STATES.map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* District Dropdown (Cascaded from State) */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-charcoal">
+                    District <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.district}
+                    onChange={(e) => handleDistrictChange(e.target.value)}
+                    className="w-full px-4 py-3 bg-white border border-[#DDD8CE] rounded-xl text-sm text-charcoal font-medium focus:outline-none focus:border-forest cursor-pointer"
+                  >
+                    <option value="" disabled>Select District</option>
+                    {(STATE_DISTRICTS_MAP[formData.state] || []).map((dist) => (
+                      <option key={dist} value={dist}>
+                        {dist}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* City / Taluk */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-charcoal">
+                    City / Taluk / Tehsil <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
                     value={formData.city}
                     onChange={(e) => updateField("city", e.target.value)}
-                    placeholder="e.g. Bangalore"
-                    className="w-full px-4 py-3 bg-white border border-[#DDD8CE] rounded-xl text-sm text-charcoal focus:outline-none focus:border-forest"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-charcoal">
-                    District <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.district}
-                    onChange={(e) => updateField("district", e.target.value)}
-                    placeholder="e.g. Bangalore Urban"
+                    placeholder="e.g. Bangalore or Anekal"
                     className="w-full px-4 py-3 bg-white border border-[#DDD8CE] rounded-xl text-sm text-charcoal focus:outline-none focus:border-forest"
                   />
                 </div>
               </div>
 
-              {/* Locality & Pincode */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="sm:col-span-2 space-y-1.5">
+              {/* Locality / Neighborhood with suggestion chips */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold uppercase tracking-wider text-charcoal">
-                    Locality / Sector / Neighborhood <span className="text-red-500">*</span>
+                    Locality / Neighborhood / Sector <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.locality}
-                    onChange={(e) => updateField("locality", e.target.value)}
-                    placeholder="e.g. Indiranagar 100ft Road or Koramangala 4th Block"
-                    className="w-full px-4 py-3 bg-white border border-[#DDD8CE] rounded-xl text-sm text-charcoal focus:outline-none focus:border-forest"
-                  />
+                  {isGeocoding && (
+                    <span className="text-[11px] text-forest flex items-center gap-1 font-medium">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Pinpointing coordinates...
+                    </span>
+                  )}
                 </div>
+                <input
+                  type="text"
+                  required
+                  value={formData.locality}
+                  onChange={(e) => handleLocalitySelect(e.target.value)}
+                  placeholder="e.g. Indiranagar 100ft Road or Koramangala 4th Block"
+                  className="w-full px-4 py-3 bg-white border border-[#DDD8CE] rounded-xl text-sm text-charcoal focus:outline-none focus:border-forest"
+                />
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-charcoal">
-                    Pincode <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={6}
-                    value={formData.pincode}
-                    onChange={(e) => updateField("pincode", e.target.value)}
-                    placeholder="560038"
-                    className="w-full px-4 py-3 bg-white border border-[#DDD8CE] rounded-xl text-sm text-charcoal focus:outline-none focus:border-forest"
-                  />
-                </div>
+                {/* Postal locality suggestions */}
+                {localitySuggestions.length > 0 && (
+                  <div className="space-y-1.5 pt-1">
+                    <p className="text-[11px] font-bold text-charcoal-light uppercase tracking-wider">
+                      Detected Postal Localities (Click to auto-fill):
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {localitySuggestions.map((loc) => (
+                        <button
+                          key={loc}
+                          type="button"
+                          onClick={() => handleLocalitySelect(loc)}
+                          className={`text-xs px-2.5 py-1 rounded-lg border transition ${
+                            formData.locality === loc
+                              ? "bg-forest text-white border-forest font-semibold"
+                              : "bg-white text-charcoal border-[#DDD8CE] hover:border-forest hover:text-forest"
+                          }`}
+                        >
+                          {loc}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Complete Address */}
+              {/* Complete Address & Landmark */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold uppercase tracking-wider text-charcoal">
                   Complete Address &amp; Landmark <span className="text-red-500">*</span>
                 </label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   required
                   value={formData.address}
                   onChange={(e) => updateField("address", e.target.value)}
@@ -939,7 +1259,48 @@ function PropertyCreationWizard() {
                   className="w-full px-4 py-3 bg-white border border-[#DDD8CE] rounded-xl text-sm text-charcoal focus:outline-none focus:border-forest"
                 />
                 <p className="text-[11px] text-charcoal-light">
-                  Exact house number will be shared only with verified tenants booking scheduled site visits.
+                  Exact house number will be masked on the public search map and only revealed to verified tenants on confirmed site visits.
+                </p>
+              </div>
+
+              {/* Interactive Map Pin Verification (MapLibre GL JS + OpenFreeMap) */}
+              <div className="p-4 bg-[#FBF9F5] border border-[#DDD8CE] rounded-2xl space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-forest" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-charcoal">
+                      Marketplace Map Location Preview
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-mono text-charcoal-light bg-white px-2.5 py-1 rounded-lg border border-[#DDD8CE]">
+                      {formData.latitude ? Number(formData.latitude).toFixed(4) : "12.9733"}° N,{" "}
+                      {formData.longitude ? Number(formData.longitude).toFixed(4) : "77.6405"}° E
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleRefreshCoordinates}
+                      disabled={isGeocoding}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-forest bg-white hover:bg-forest/10 border border-forest/30 rounded-lg transition disabled:opacity-50"
+                      title="Re-pinpoint coordinates using current address"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isGeocoding ? "animate-spin" : ""}`} />
+                      Re-center
+                    </button>
+                  </div>
+                </div>
+
+                <div className="w-full h-56 rounded-xl overflow-hidden border border-[#DDD8CE] shadow-inner relative">
+                  <MiniMap
+                    latitude={formData.latitude || 12.9733}
+                    longitude={formData.longitude || 77.6405}
+                    locality={formData.locality || formData.city}
+                  />
+                </div>
+
+                <p className="text-[11px] text-charcoal-light flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-forest flex-shrink-0" />
+                  Your listing will be indexed using these verified coordinates with a 350-meter privacy radius.
                 </p>
               </div>
             </div>

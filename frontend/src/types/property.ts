@@ -94,6 +94,8 @@ export interface PropertyFormData {
   locality: string;
   address: string;
   pincode: string;
+  latitude?: number;
+  longitude?: number;
 
   // Step 4: Amenities & Rules
   furnishing: FurnishingType;
