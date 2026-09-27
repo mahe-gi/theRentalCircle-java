@@ -10,5 +10,6 @@ import java.util.List;
 public interface AdminActionRepository extends JpaRepository<AdminAction, Long> {
     List<AdminAction> findByTargetTypeAndTargetId(String targetType, Long targetId);
     List<AdminAction> findByAdminId(Long adminId);
-    long countByTargetTypeAndTargetIdAndAction(String targetType, Long targetId, String action);
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"admin"})
+    org.springframework.data.domain.Page<AdminAction> findAllByOrderByCreatedAtDesc(org.springframework.data.domain.Pageable pageable);
 }

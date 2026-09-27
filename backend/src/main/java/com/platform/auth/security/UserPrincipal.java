@@ -22,6 +22,7 @@ public class UserPrincipal implements UserDetails {
     private final String password;
     private final boolean isActive;
     private final Collection<? extends GrantedAuthority> authorities;
+    private final User user;
 
     public static UserPrincipal create(User user) {
         List<GrantedAuthority> authorities = user.getRoles() != null
@@ -36,6 +37,7 @@ public class UserPrincipal implements UserDetails {
                 .password(user.getPasswordHash())
                 .isActive(user.isActive())
                 .authorities(authorities)
+                .user(user)
                 .build();
     }
 

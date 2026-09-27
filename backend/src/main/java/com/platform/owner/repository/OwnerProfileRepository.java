@@ -27,6 +27,8 @@ public interface OwnerProfileRepository extends JpaRepository<OwnerProfile, Long
 
     Page<OwnerProfile> findAllByVerificationStatus(VerificationStatus verificationStatus, Pageable pageable);
 
+    long countByVerificationStatus(VerificationStatus verificationStatus);
+
     @Query(value = "SELECT COUNT(*) FROM documents WHERE owner_profile_id = :ownerProfileId", nativeQuery = true)
     long countDocumentsByOwnerProfileId(@Param("ownerProfileId") Long ownerProfileId);
 }

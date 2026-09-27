@@ -212,3 +212,155 @@ export interface LocationSuggestionsResponse {
   localities: string[];
 }
 
+export interface ContactResponse {
+  contactEventId: number;
+  propertyId: number;
+  whatsappUrl: string;
+  ownerName: string;
+}
+
+export type EnquiryStatus = "NEW" | "CONTACTED" | "VISIT_SCHEDULED" | "CLOSED";
+
+export interface EnquiryResponse {
+  id: number;
+  propertyId: number;
+  propertyTitle: string;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  userMobile?: string;
+  message: string;
+  status: EnquiryStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type VisitStatus =
+  | "REQUESTED"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "RESCHEDULED"
+  | "CANCELLED"
+  | "COMPLETED"
+  | "NO_SHOW";
+
+export interface VisitResponse {
+  id: number;
+  propertyId: number;
+  propertyTitle: string;
+  city: string;
+  locality: string;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  userMobile?: string;
+  preferredDate: string;
+  preferredTime: string;
+  message?: string;
+  status: VisitStatus;
+  rescheduledDate?: string;
+  rescheduledTime?: string;
+  ownerRemarks?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FavoriteToggleResponse {
+  propertyId: number;
+  isFavorited: boolean;
+  message: string;
+}
+
+export type ReportReason =
+  | "BROKER"
+  | "SPAM"
+  | "FAKE_PROPERTY"
+  | "WRONG_INFORMATION"
+  | "DUPLICATE_LISTING"
+  | "WRONG_PRICE"
+  | "ALREADY_RENTED"
+  | "ALREADY_SOLD"
+  | "SCAM"
+  | "OTHER";
+
+export type ReportStatus = "OPEN" | "UNDER_INVESTIGATION" | "RESOLVED" | "DISMISSED";
+
+export type ResolutionAction =
+  | "DISMISS"
+  | "REQUEST_INFORMATION"
+  | "WARN"
+  | "HIDE_PROPERTY"
+  | "REJECT_PROPERTY"
+  | "SUSPEND_USER"
+  | "BLOCK_USER";
+
+export interface ReportResponse {
+  id: number;
+  reporterId: number;
+  reporterName: string;
+  propertyId?: number;
+  propertyTitle?: string;
+  reportedUserId?: number;
+  reportedUserName?: string;
+  reason: ReportReason;
+  description?: string;
+  status: ReportStatus;
+  assignedAdminId?: number;
+  assignedAdminName?: string;
+  resolutionAction?: ResolutionAction;
+  resolutionNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string;
+}
+
+export interface NotificationResponse {
+  id: number;
+  userId: number;
+  title: string;
+  message: string;
+  notificationType: string;
+  referenceType?: string;
+  referenceId?: number;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface AdminDashboardResponse {
+  totalUsers: number;
+  totalOwners: number;
+  verifiedOwners: number;
+  pendingOwners: number;
+  liveProperties: number;
+  pendingProperties: number;
+  openReports: number;
+  totalVisits: number;
+  totalEnquiries: number;
+}
+
+export interface AdminUserResponse {
+  id: number;
+  email: string;
+  mobile?: string;
+  firstName: string;
+  lastName: string;
+  userType: string;
+  active: boolean;
+  emailVerified: boolean;
+  mobileVerified: boolean;
+  roles: string[];
+  createdAt: string;
+}
+
+export interface AdminActionResponse {
+  id: number;
+  adminId: number;
+  adminName: string;
+  action: string;
+  targetType: string;
+  targetId: number;
+  details?: string;
+  ipAddress?: string;
+  createdAt: string;
+}
+

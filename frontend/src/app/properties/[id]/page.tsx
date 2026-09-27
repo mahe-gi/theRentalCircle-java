@@ -16,6 +16,7 @@ import {
 import { Navbar } from "@/components/navbar";
 import { PhotoGallery } from "@/components/property/PhotoGallery";
 import { MiniMap } from "@/components/map/MiniMap";
+import { PropertyActionPanel } from "@/components/property/PropertyActionPanel";
 import type { PublicPropertyDetail } from "@/types/property";
 
 interface PageProps {
@@ -327,24 +328,8 @@ export default async function PropertyDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              {/* Deferred Connection Card */}
-              <div className="p-4 rounded-xl bg-sand border border-[#E8E4DD] text-center space-y-3">
-                <span className="text-xs font-bold text-charcoal block">
-                  Connect Directly with Owner
-                </span>
-                <p className="text-xs text-charcoal-light">
-                  WhatsApp direct link, enquiries, and site visit scheduling unlock with an authenticated account.
-                </p>
-                <Link
-                  href={`/login?redirect=/properties/${property.id}`}
-                  className="block w-full py-2.5 px-4 rounded-xl bg-forest text-white text-xs font-semibold hover:bg-forest/90 transition-colors shadow-sm"
-                >
-                  Login to Contact Owner
-                </Link>
-                <span className="text-[10px] text-charcoal-light block">
-                  No brokerage fee. 100% direct connection.
-                </span>
-              </div>
+              {/* Interactive Connection Actions */}
+              <PropertyActionPanel propertyId={property.id} propertyTitle={property.title} />
 
               {/* Listed Metadata */}
               <div className="text-[11px] text-charcoal-light pt-2 space-y-1">

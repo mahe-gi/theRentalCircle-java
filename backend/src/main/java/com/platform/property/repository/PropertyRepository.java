@@ -38,6 +38,8 @@ public interface PropertyRepository extends JpaRepository<Property, Long>, JpaSp
 
     Page<Property> findAllByStatus(PropertyStatus status, Pageable pageable);
 
+    long countByStatus(PropertyStatus status);
+
     @Query("SELECT DISTINCT p.city FROM Property p WHERE p.status = com.platform.property.entity.PropertyStatus.LIVE AND LOWER(p.city) LIKE :pattern ORDER BY p.city")
     List<String> findDistinctLiveCitiesStartingWith(@Param("pattern") String pattern, Pageable pageable);
 
