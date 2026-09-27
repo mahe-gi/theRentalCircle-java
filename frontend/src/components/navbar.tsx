@@ -34,6 +34,7 @@ import type { NotificationResponse } from "@/types/property";
 export function Navbar() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
@@ -42,25 +43,33 @@ export function Navbar() {
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isAuth = mounted && isAuthenticated;
+
   const isOwner =
-    Boolean(user?.roles?.includes("ROLE_OWNER")) ||
-    user?.userType === "OWNER";
+    mounted &&
+    (Boolean(user?.roles?.includes("ROLE_OWNER")) ||
+      user?.userType === "OWNER");
 
   const isAdmin =
-    Boolean(user?.roles?.includes("ROLE_ADMIN")) ||
-    user?.userType === "ADMIN";
+    mounted &&
+    (Boolean(user?.roles?.includes("ROLE_ADMIN")) ||
+      user?.userType === "ADMIN");
 
   const listPropertyHref = isOwner
     ? "/owner/properties/new"
     : "/owner/become-owner";
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuth) {
       getUnreadNotificationsCount()
         .then(setUnreadCount)
         .catch(() => {});
     }
-  }, [isAuthenticated]);
+  }, [isAuth]);
 
   const handleOpenNotifications = async () => {
     const nextState = !notificationsOpen;
@@ -244,7 +253,7 @@ export function Navbar() {
           </Link>
 
           {/* Notification Bell */}
-          {isAuthenticated && (
+          {isAuth && (
             <div className="relative">
               <button
                 type="button"
@@ -304,9 +313,9 @@ export function Navbar() {
           )}
 
           {/* User Status / Account Dropdown */}
-          {isLoading ? (
+          {!mounted || isLoading ? (
             <div className="w-8 h-8 rounded-full bg-[#E8E4DD] animate-pulse" />
-          ) : isAuthenticated && user ? (
+          ) : isAuth && user ? (
             <div className="relative">
               <button
                 type="button"
@@ -484,7 +493,7 @@ export function Navbar() {
               Search Properties
             </Link>
 
-            {isAuthenticated && (
+            {isAuth && (
               <>
                 <Link
                   href="/favorites"

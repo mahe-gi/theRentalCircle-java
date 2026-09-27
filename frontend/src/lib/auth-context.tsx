@@ -51,19 +51,7 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Initialize user from localStorage if available to prevent UI flicker on refresh
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("rc_user");
-        return stored ? JSON.parse(stored) : null;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
-
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const saveUser = useCallback((newUser: User | null) => {
@@ -105,6 +93,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Handle on-mount authentication initialization
   useEffect(() => {
     let isMounted = true;
+
+    // Read cached user on client mount without causing SSR hydration mismatch
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("rc_user");
+        if (stored) {
+          setUser(JSON.parse(stored));
+        }
+      } catch {
+        // Ignore storage errors
+      }
+    }
 
     // Register callback for when api-client encounters 401 refresh rejection
     setOnAuthFailure(() => {
