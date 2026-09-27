@@ -40,6 +40,7 @@ services:
       FILE_SECURE_DOCS_DIR: /var/app/secure-docs
       GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
       GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET}
+      OAUTH2_REDIRECT_URI: ${OAUTH2_REDIRECT_URI:-http://localhost:3000/auth/callback}
     ports:
       - "8080:8080"
     volumes:
@@ -85,29 +86,29 @@ services:
 #       retries: 5
 #       start_period: 20s
 
-  nginx:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
-    image: platform-nginx:dev
-    container_name: platform-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    volumes:
-      - uploads_data:/var/app/uploads:ro
-    depends_on:
-      backend:
-        condition: service_healthy
-    networks:
-      - platform-network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/ || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
+#   nginx:
+#     build:
+#       context: ./nginx
+#       dockerfile: Dockerfile
+#     image: platform-nginx:dev
+#     container_name: platform-nginx
+#     restart: unless-stopped
+#     ports:
+#       - "80:80"
+#     volumes:
+#       - uploads_data:/var/app/uploads:ro
+#     depends_on:
+#       backend:
+#         condition: service_healthy
+#     networks:
+#       - platform-network
+#     extra_hosts:
+#       - "host.docker.internal:host-gateway"
+#     healthcheck:
+#       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/ || exit 1"]
+#       interval: 5s
+#       timeout: 3s
+#       retries: 3
 
 volumes:
   postgres_data:

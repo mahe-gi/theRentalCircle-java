@@ -27,7 +27,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
 
-    @Value("${app.oauth2.redirect-uri:http://localhost/auth/callback}")
+    @Value("${app.oauth2.redirect-uri:http://localhost:3000/auth/callback}")
     private String redirectUri;
 
     @Override

@@ -28,7 +28,7 @@ BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 # Configuration
-BASE_URL="${BASE_URL:-http://localhost}"
+BASE_URL="${BASE_URL:-http://localhost:8080}"
 DB_CONTAINER="${DB_CONTAINER:-platform-postgres}"
 DB_NAME="${POSTGRES_DB:-dev_platform}"
 DB_USER="${POSTGRES_USER:-dev_user}"

@@ -59,7 +59,8 @@ public class SecurityConfig {
                     "/api/v1/auth/refresh",
                     "/api/v1/auth/logout",
                     "/oauth2/**",
-                    "/login/oauth2/**"
+                    "/login/oauth2/**",
+                    "/uploads/**"
                 ).permitAll()
                 .requestMatchers("/api/v1/auth/me").authenticated()
                 .requestMatchers("/api/v1/properties/search", "/api/v1/properties/search/**").permitAll()

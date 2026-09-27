@@ -39,7 +39,7 @@ BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 # Configuration
-BASE_URL="${BASE_URL:-http://localhost}"
+BASE_URL="${BASE_URL:-http://localhost:8080}"
 DB_CONTAINER="${DB_CONTAINER:-platform-postgres}"
 DB_NAME="${POSTGRES_DB:-dev_platform}"
 DB_USER="${POSTGRES_USER:-dev_user}"
@@ -295,22 +295,22 @@ HTTP_CODE_SEC_ROOT=$(curl -s -L -o /dev/null -w "%{http_code}" "${BASE_URL}/secu
 HTTP_CODE_SEC_FILE=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/secure-docs/test.pdf")
 HTTP_CODE_SEC_PATH=$(curl -s -o /dev/null -w "%{http_code}" "${BASE_URL}/secure-docs/documents/id_proof.pdf")
 
-if [ "$HTTP_CODE_SEC_ROOT" = "404" ] || [ "$HTTP_CODE_SEC_ROOT" = "403" ]; then
-    pass_test "Private Storage Root Protection" "Direct GET /secure-docs/ returned HTTP ${HTTP_CODE_SEC_ROOT} (unmapped in Nginx)"
+if [ "$HTTP_CODE_SEC_ROOT" = "404" ] || [ "$HTTP_CODE_SEC_ROOT" = "403" ] || [ "$HTTP_CODE_SEC_ROOT" = "401" ]; then
+    pass_test "Private Storage Root Protection" "Direct GET /secure-docs/ returned HTTP ${HTTP_CODE_SEC_ROOT} (unmapped / protected)"
 else
-    fail_test "Private Storage Root Protection" "Expected HTTP 404 or 403, got HTTP ${HTTP_CODE_SEC_ROOT}"
+    fail_test "Private Storage Root Protection" "Expected HTTP 404, 403, or 401, got HTTP ${HTTP_CODE_SEC_ROOT}"
 fi
 
-if [ "$HTTP_CODE_SEC_FILE" = "404" ] || [ "$HTTP_CODE_SEC_FILE" = "403" ]; then
-    pass_test "Private Storage File Protection" "Direct GET /secure-docs/test.pdf returned HTTP ${HTTP_CODE_SEC_FILE} (unmapped in Nginx)"
+if [ "$HTTP_CODE_SEC_FILE" = "404" ] || [ "$HTTP_CODE_SEC_FILE" = "403" ] || [ "$HTTP_CODE_SEC_FILE" = "401" ]; then
+    pass_test "Private Storage File Protection" "Direct GET /secure-docs/test.pdf returned HTTP ${HTTP_CODE_SEC_FILE} (unmapped / protected)"
 else
-    fail_test "Private Storage File Protection" "Expected HTTP 404 or 403, got HTTP ${HTTP_CODE_SEC_FILE}"
+    fail_test "Private Storage File Protection" "Expected HTTP 404, 403, or 401, got HTTP ${HTTP_CODE_SEC_FILE}"
 fi
 
-if [ "$HTTP_CODE_SEC_PATH" = "404" ] || [ "$HTTP_CODE_SEC_PATH" = "403" ]; then
+if [ "$HTTP_CODE_SEC_PATH" = "404" ] || [ "$HTTP_CODE_SEC_PATH" = "403" ] || [ "$HTTP_CODE_SEC_PATH" = "401" ]; then
     pass_test "Private Storage Deep Path Protection" "Direct GET /secure-docs/documents/id_proof.pdf returned HTTP ${HTTP_CODE_SEC_PATH}"
 else
-    fail_test "Private Storage Deep Path Protection" "Expected HTTP 404 or 403, got HTTP ${HTTP_CODE_SEC_PATH}"
+    fail_test "Private Storage Deep Path Protection" "Expected HTTP 404, 403, or 401, got HTTP ${HTTP_CODE_SEC_PATH}"
 fi
 
 # ==============================================================================

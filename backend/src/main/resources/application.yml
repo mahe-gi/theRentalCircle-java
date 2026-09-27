@@ -60,4 +60,4 @@ app:
   cookie:
     secure: ${COOKIE_SECURE:false}
   oauth2:
-    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost/auth/callback}
+    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:3000/auth/callback}
