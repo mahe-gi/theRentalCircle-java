@@ -36,6 +36,7 @@ public class OwnerProfileService {
     private final PropertyRepository propertyRepository;
     private final PropertyImageService propertyImageService;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final com.platform.report.repository.ReportRepository reportRepository;
 
     @Transactional
     public OwnerProfileResponse registerOwner(User currentUser, CreateOwnerProfileRequest req) {
@@ -131,8 +132,14 @@ public class OwnerProfileService {
         int purgedDocs = documentCleanupService.purgeAllDocumentsForOwnerProfile(ownerProfileId);
         log.info("Purged {} physical document files and records for owner profile id: {}", purgedDocs, ownerProfileId);
 
-        // 2. Clean up property images and property documents from disk for any properties owned by this owner
+        // 2. Clean up property images, documents and reports for any properties owned by this owner
         List<Property> properties = propertyRepository.findByOwnerProfileId(ownerProfileId);
+        List<Long> propIds = properties.stream().map(Property::getId).toList();
+        if (!propIds.isEmpty()) {
+            reportRepository.deleteByPropertyIds(propIds);
+        }
+        reportRepository.deleteByReportedUserId(userId);
+
         for (Property property : properties) {
             propertyImageService.deleteAllImagesForProperty(property.getId());
             documentCleanupService.purgeAllDocumentsForProperty(property.getId());

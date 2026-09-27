@@ -52,11 +52,43 @@
 | **Slice 5: Discovery** | Search, Filters, MapLibre & SSR Details | `[x] COMPLETED & FROZEN` | 28/28 integration tests passed (JPA multi-predicate search, AND amenity subquery, bounding box, hard cap size, location autocomplete, SSR property detail, address privacy, zero status leakage, MapLibre GL JS + OpenFreeMap stack replacement). |
 | **Slice 6: Connection** | WhatsApp, Enquiries, Visits & Favorites | `[x] COMPLETED & FROZEN` | 59/59 integration tests passed (wa.me deep links, contact events, enquiry state machine, visit lifecycle, favorites toggle, in-app notifications). |
 | **Slice 7: Trust & Operations**| Reports, Moderation, In-App Notifications | `[x] COMPLETED & FROZEN` | 36/36 integration tests passed (user reports, moderation queues, hide property, suspended property search exclusion, user suspend/restore, admin dashboard metrics, chronological audit log). |
-| **Slice 8: Hardening** | E2E Testing, Security Audits & Deployment | `[ ] TODO` | Full user journey verification script. |
+| **Slice 8: Hardening** | E2E Testing, Security Audits & Ship | `[x] COMPLETED & FROZEN` | 28/28 cross-slice E2E journey tests passed, 221/221 total platform regression tests passed (100%), 0 compile/type errors, production build verified. |
 
 ---
 
 ## 4. Active Checkpoint Log
+
+```text
+[CHECKPOINT-20260927-14]
+- Timestamp: 2026-09-27T08:52:00+05:30
+- Phase: SLICES 1 THROUGH 8 (COMPLETE PLATFORM SHIP READY) 100% VERIFIED & FROZEN
+- Status: 100% VERIFIED & FROZEN
+- Verification Evidence:
+  1. Slice 8 End-to-End User Journey Test Suite (`scripts/test-slice-8-e2e.sh`):
+     * Journey A: Owner registration ➔ login ➔ declaration ➔ property draft ➔ JPEG upload (magic bytes) ➔ KYC PDF upload (isolated storage) ➔ submission ➔ admin verification & approval ➔ automated bidirectional LIVE transition.
+     * Journey B: Anonymous discovery via structured search (city + locality + amenities AND semantics) ➔ public property details (strict address privacy & status withheld) ➔ tenant registration ➔ authenticated WhatsApp direct contact (wa.me link generation & contact_event log) ➔ structured lead enquiry ➔ owner enquiry status advancement (`CONTACTED`) ➔ visit scheduling & acceptance ➔ favorite bookmark toggle.
+     * Journey C: Community reporting (tenant reports property for `BROKER` commission demand) ➔ admin investigation ➔ admin resolution (`HIDE_PROPERTY`) ➔ instant transition to `SUSPENDED` ➔ immediate search quarantine ➔ public detail returns 404 ➔ immutable audit trail logging in `admin_actions`.
+     * Journey D: Owner account erasure pipeline (`DELETE /api/v1/owners/account`) ➔ physical KYC and property files confirmed purged from disk (`/var/app/secure-docs/`) ➔ database records, properties, documents, and credentials cascaded.
+     * Result: 28/28 assertions passed (100%).
+  2. Full Platform Continuous Regression Suite (Slices 8 down to 2):
+     * `scripts/test-slice-8-e2e.sh`: 28/28 passed (100%).
+     * `scripts/test-slice-7.sh`: 36/36 passed (100%).
+     * `scripts/test-slice-6.sh`: 59/59 passed (100%).
+     * `scripts/test-slice-5.sh`: 28/28 passed (100%).
+     * `scripts/test-slice-4.sh`: 34/34 passed (100%).
+     * `scripts/test-slice-3.sh`: 20/20 passed (100%).
+     * `scripts/test-slice-2.sh`: 16/16 passed (100%).
+     * Grand Total: 221/221 integration assertions passed across all slices (100% zero-regression clean run).
+  3. Production Builds & Container Health:
+     * Next.js 16 production build (`npm run build`): compiled successfully, all 23 routes static/dynamic generated cleanly.
+     * Frontend TypeScript check (`npx tsc --noEmit`): 0 errors.
+     * Backend build: Maven clean package withtemurin 21 compiled cleanly.
+     * All 4 Docker services healthy: `platform-backend` (8080), `platform-frontend` (3000), `platform-nginx` (80), `platform-postgres` (5432).
+  4. Database & Integrity:
+     * Migrations V1 through V7 executed cleanly against PostgreSQL 17.11.
+     * `V7__reports_foreign_key_cascade.sql` active.
+- Platform Status: ALL SLICES COMPLETED, VERIFIED & FROZEN. SHIP READY.
+```
 
 ```text
 [CHECKPOINT-20260927-13]

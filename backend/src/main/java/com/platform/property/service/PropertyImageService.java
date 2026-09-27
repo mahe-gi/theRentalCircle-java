@@ -281,8 +281,6 @@ public class PropertyImageService {
                 log.error("Failed to delete physical file: {}", targetPath, e);
             }
         }
-        propertyImageRepository.deleteByPropertyId(propertyId);
-        propertyImageRepository.flush();
     }
 
     /**
