@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Navbar } from "@/components/navbar";
 import { FilterPanel } from "@/components/search/FilterPanel";
@@ -11,12 +12,38 @@ import { searchProperties } from "@/lib/search-api";
 import type { SearchFilters } from "@/types/property";
 import { Building2, List, Map as MapIcon, SlidersHorizontal } from "lucide-react";
 
-export default function PropertiesSearchPage() {
+function PropertiesSearchContent() {
+  const searchParams = useSearchParams();
+  const initialCity = searchParams.get("city") || undefined;
+  const initialListingType = (searchParams.get("listingType") as "RENT" | "SALE") || undefined;
+  const initialPropertyType = searchParams.get("propertyType") || undefined;
+
   const [filters, setFilters] = useState<SearchFilters>({
     sort: "NEWEST",
     page: 0,
     size: 20,
+    city: initialCity,
+    listingType: initialListingType,
+    propertyType: initialPropertyType,
   });
+
+  useEffect(() => {
+    const city = searchParams.get("city") || undefined;
+    const listingType = (searchParams.get("listingType") as "RENT" | "SALE") || undefined;
+    const propertyType = searchParams.get("propertyType") || undefined;
+    setFilters((prev) => {
+      if (prev.city === city && prev.listingType === listingType && prev.propertyType === propertyType) {
+        return prev;
+      }
+      return {
+        ...prev,
+        city,
+        listingType,
+        propertyType,
+        page: 0,
+      };
+    });
+  }, [searchParams]);
 
   const [hoveredPropertyId, setHoveredPropertyId] = useState<number | null>(null);
   const [mobileTab, setMobileTab] = useState<"list" | "map">("list");
@@ -249,3 +276,19 @@ export default function PropertiesSearchPage() {
     </div>
   );
 }
+
+export default function PropertiesSearchPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-sand flex flex-col items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-forest mb-2"></div>
+          <span className="text-xs font-medium text-charcoal-light">Loading marketplace...</span>
+        </div>
+      }
+    >
+      <PropertiesSearchContent />
+    </Suspense>
+  );
+}
+

@@ -51,10 +51,18 @@ export async function searchProperties(
 
   const response = await apiClient.get<{
     status: string;
-    data: PagedResponse<PropertySearchResult>;
+    data: any;
   }>("/api/v1/properties/search", { params });
 
-  return response.data.data;
+  const raw = response.data.data;
+  return {
+    content: raw?.content || [],
+    page: raw?.page?.number ?? raw?.page ?? 0,
+    size: raw?.page?.size ?? raw?.size ?? 20,
+    totalElements: raw?.page?.totalElements ?? raw?.totalElements ?? (raw?.content?.length || 0),
+    totalPages: raw?.page?.totalPages ?? raw?.totalPages ?? 1,
+    last: raw?.page ? (raw.page.number >= raw.page.totalPages - 1) : (raw?.last ?? true),
+  };
 }
 
 export async function suggestLocations(
