@@ -62,8 +62,10 @@ export default function BecomeOwnerPage() {
       const payload: {
         ownershipType: OwnershipType;
         companyName?: string;
+        declarationAccepted: boolean;
       } = {
         ownershipType,
+        declarationAccepted: true,
       };
 
       if (companyName.trim()) {
