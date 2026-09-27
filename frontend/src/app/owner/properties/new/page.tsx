@@ -67,14 +67,14 @@ const INITIAL_FORM_DATA: PropertyFormData = {
   availabilityDate: new Date().toISOString().split("T")[0],
 
   // Step 3: Location
-  state: "Karnataka",
-  city: "Bangalore",
-  district: "Bengaluru Urban",
-  locality: "Indiranagar",
+  state: "",
+  city: "",
+  district: "",
+  locality: "",
   address: "",
-  pincode: "560038",
-  latitude: 12.9733,
-  longitude: 77.6405,
+  pincode: "",
+  latitude: undefined,
+  longitude: undefined,
 
   // Step 4: Amenities & Rules
   furnishing: "SEMI_FURNISHED",
@@ -197,13 +197,21 @@ function PropertyCreationWizard() {
       try {
         const result = await lookupPincode(newPin.trim());
         if (result.success && result.state) {
+          const detectedLocality =
+            result.localities.length > 0 ? result.localities[0] : (result.city || result.district || "");
+
           setFormData((prev) => ({
             ...prev,
             pincode: newPin.trim(),
             state: result.state || prev.state,
             district: result.district || prev.district,
-            city: result.city || prev.city || result.district || "",
+            city: result.city || result.district || prev.city,
+            locality:
+              !prev.locality || prev.locality === "Indiranagar"
+                ? detectedLocality
+                : prev.locality,
           }));
+
           if (result.localities.length > 0) {
             setLocalitySuggestions(result.localities);
           }
@@ -213,7 +221,7 @@ function PropertyCreationWizard() {
 
           // Geocode with latest details
           const geo = await geocodeLocation({
-            locality: formData.locality || result.localities[0],
+            locality: detectedLocality,
             city: result.city || result.district,
             district: result.district,
             state: result.state,
@@ -1154,6 +1162,9 @@ function PropertyCreationWizard() {
                     className="w-full px-4 py-3 bg-white border border-[#DDD8CE] rounded-xl text-sm text-charcoal font-medium focus:outline-none focus:border-forest cursor-pointer"
                   >
                     <option value="" disabled>Select State / UT</option>
+                    {formData.state && !INDIAN_STATES.includes(formData.state) && (
+                      <option value={formData.state}>{formData.state}</option>
+                    )}
                     {INDIAN_STATES.map((st) => (
                       <option key={st} value={st}>
                         {st}
@@ -1174,6 +1185,10 @@ function PropertyCreationWizard() {
                     className="w-full px-4 py-3 bg-white border border-[#DDD8CE] rounded-xl text-sm text-charcoal font-medium focus:outline-none focus:border-forest cursor-pointer"
                   >
                     <option value="" disabled>Select District</option>
+                    {formData.district &&
+                      !(STATE_DISTRICTS_MAP[formData.state] || []).includes(formData.district) && (
+                        <option value={formData.district}>{formData.district}</option>
+                      )}
                     {(STATE_DISTRICTS_MAP[formData.state] || []).map((dist) => (
                       <option key={dist} value={dist}>
                         {dist}
@@ -1273,14 +1288,15 @@ function PropertyCreationWizard() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-mono text-charcoal-light bg-white px-2.5 py-1 rounded-lg border border-[#DDD8CE]">
-                      {formData.latitude ? Number(formData.latitude).toFixed(4) : "12.9733"}° N,{" "}
-                      {formData.longitude ? Number(formData.longitude).toFixed(4) : "77.6405"}° E
-                    </span>
+                    {formData.latitude && formData.longitude && (
+                      <span className="text-[11px] font-mono text-charcoal-light bg-white px-2.5 py-1 rounded-lg border border-[#DDD8CE]">
+                        {Number(formData.latitude).toFixed(4)}° N, {Number(formData.longitude).toFixed(4)}° E
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={handleRefreshCoordinates}
-                      disabled={isGeocoding}
+                      disabled={isGeocoding || (!formData.state && !formData.pincode)}
                       className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-forest bg-white hover:bg-forest/10 border border-forest/30 rounded-lg transition disabled:opacity-50"
                       title="Re-pinpoint coordinates using current address"
                     >
@@ -1291,11 +1307,24 @@ function PropertyCreationWizard() {
                 </div>
 
                 <div className="w-full h-56 rounded-xl overflow-hidden border border-[#DDD8CE] shadow-inner relative">
-                  <MiniMap
-                    latitude={formData.latitude || 12.9733}
-                    longitude={formData.longitude || 77.6405}
-                    locality={formData.locality || formData.city}
-                  />
+                  {formData.latitude && formData.longitude ? (
+                    <MiniMap
+                      key={`${formData.latitude}-${formData.longitude}`}
+                      latitude={formData.latitude}
+                      longitude={formData.longitude}
+                      locality={formData.locality || formData.city}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-[#F5F2EB] flex flex-col items-center justify-center text-charcoal-light p-4 text-center">
+                      <MapPin className="w-7 h-7 text-charcoal-light/40 mb-2" />
+                      <p className="text-xs font-bold text-charcoal">
+                        Enter PIN code or select State &amp; District to pinpoint map location
+                      </p>
+                      <p className="text-[11px] text-charcoal-light mt-0.5">
+                        Interactive map preview will load your location automatically
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <p className="text-[11px] text-charcoal-light flex items-center gap-1.5">

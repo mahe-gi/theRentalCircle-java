@@ -1019,17 +1019,75 @@ export function normalizeState(rawState?: string): string {
 export function normalizeDistrict(rawDistrict: string, stateName: string): string {
   if (!rawDistrict) return "";
   const districts = STATE_DISTRICTS_MAP[stateName] || [];
-  const cleaned = rawDistrict.trim().toLowerCase();
+  const clean = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const target = clean(rawDistrict);
 
-  const exact = districts.find((d) => d.toLowerCase() === cleaned);
+  // 1. Exact alphanumeric match (handles "Mahabub Nagar" -> "Mahabubnagar", "Bengaluru Urban" -> "Bangalore Urban", etc.)
+  const exact = districts.find((d) => clean(d) === target);
   if (exact) return exact;
 
+  // 2. Common aliases & historical spellings
+  const aliases: Record<string, string> = {
+    mahabubnagar: "Mahabubnagar",
+    mahabubnagarho: "Mahabubnagar",
+    mahabubnagardist: "Mahabubnagar",
+    bangalore: "Bengaluru Urban",
+    bangaloreurban: "Bengaluru Urban",
+    bangalorerural: "Bengaluru Rural",
+    bengaluru: "Bengaluru Urban",
+    bengaluruurban: "Bengaluru Urban",
+    bengalururural: "Bengaluru Rural",
+    mysore: "Mysuru",
+    belgaum: "Belagavi",
+    bellary: "Ballari",
+    shimoga: "Shivamogga",
+    gulbarga: "Kalaburagi",
+    bijapur: "Vijayapura",
+    chikmagalur: "Chikkamagaluru",
+    tumkur: "Tumakuru",
+    aurangabad: "Chhatrapati Sambhajinagar",
+    osmanabad: "Dharashiv",
+    allahabad: "Prayagraj",
+    faizabad: "Ayodhya",
+    gurgaon: "Gurugram",
+    mewat: "Nuh",
+    pondicherry: "Puducherry",
+    kancheepuram: "Kanchipuram",
+    kanniyakumari: "Kanyakumari",
+    tuticorin: "Thoothukudi",
+    tanjore: "Thanjavur",
+    trichy: "Tiruchirappalli",
+    cochin: "Ernakulam",
+    calicut: "Kozhikode",
+    trivandrum: "Thiruvananthapuram",
+    palghat: "Palakkad",
+    quilon: "Kollam",
+    alleppey: "Alappuzha",
+    cannannore: "Kannur",
+    kadapa: "YSR Kadapa",
+    nellore: "Sri Potti Sriramulu Nellore",
+    rangareddi: "Rangareddy",
+    medchal: "Medchal-Malkajgiri",
+    warangalurban: "Hanumakonda",
+    warangalrural: "Warangal",
+  };
+
+  if (aliases[target]) {
+    const aliasMatch = districts.find((d) => clean(d) === clean(aliases[target]));
+    if (aliasMatch) return aliasMatch;
+  }
+
+  // 3. Substring match
   const partial = districts.find(
-    (d) =>
-      cleaned.includes(d.toLowerCase()) ||
-      d.toLowerCase().includes(cleaned)
+    (d) => clean(d).includes(target) || target.includes(clean(d))
   );
   if (partial) return partial;
+
+  // 4. In case the district belongs to another state (e.g. circle mismatch), search all states
+  for (const st of Object.keys(STATE_DISTRICTS_MAP)) {
+    const found = STATE_DISTRICTS_MAP[st].find((d) => clean(d) === target);
+    if (found) return found;
+  }
 
   return rawDistrict.trim();
 }
@@ -1093,33 +1151,48 @@ export async function lookupPincode(pincode: string): Promise<PincodeLookupResul
     const standardDistrict = normalizeDistrict(rawDistrict, standardState);
 
     // Collect distinct localities/suburbs from post office names and blocks
-    const localitySet = new Set<string>();
+    const localityMap = new Map<string, string>();
+    const cleanKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
     for (const po of postOffices) {
       if (po.name) {
-        // Strip common suffixes like "(Bangalore)" or "S.O" / "B.O"
+        // Strip common suffixes like "(Bangalore)" or "S.O" / "B.O" / "H.O"
         const cleanName = po.name
           .replace(/\s*\([^)]*\)/g, "")
-          .replace(/\s+(S\.O|B\.O|H\.O)$/i, "")
+          .replace(/\s+(S\.O|B\.O|H\.O|SO|BO|HO)$/i, "")
           .trim();
-        if (cleanName) localitySet.add(cleanName);
+        const key = cleanKey(cleanName);
+        if (cleanName && !localityMap.has(key)) {
+          localityMap.set(key, cleanName);
+        }
       }
       if (po.block && po.block !== "NA") {
-        localitySet.add(po.block.trim());
+        const cleanBlock = po.block
+          .replace(/\s*\([^)]*\)/g, "")
+          .replace(/\s+(S\.O|B\.O|H\.O|SO|BO|HO)$/i, "")
+          .trim();
+        const key = cleanKey(cleanBlock);
+        if (cleanBlock && !localityMap.has(key)) {
+          localityMap.set(key, cleanBlock);
+        }
       }
     }
 
     // Determine representative city/taluk
     let detectedCity = rawBlock && rawBlock !== "NA" ? rawBlock : standardDistrict;
+    detectedCity = detectedCity.replace(/\s+(S\.O|B\.O|H\.O|SO|BO|HO)$/i, "").trim();
     if (detectedCity.toLowerCase().includes("bangalore") || detectedCity.toLowerCase().includes("bengaluru")) {
       detectedCity = "Bangalore";
     }
+
+    const uniqueLocalities = Array.from(localityMap.values());
 
     return {
       success: true,
       state: standardState,
       district: standardDistrict,
       city: detectedCity,
-      localities: Array.from(localitySet),
+      localities: uniqueLocalities,
       postOffices,
     };
   } catch (err: any) {
