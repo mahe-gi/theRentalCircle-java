@@ -55,33 +55,33 @@ services:
       retries: 5
       start_period: 25s
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_MAP_STYLE_URL: ${NEXT_PUBLIC_MAP_STYLE_URL:-https://tiles.openfreemap.org/styles/liberty}
-    image: platform-frontend:dev
-    container_name: platform-frontend
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      BACKEND_INTERNAL_URL: http://backend:8080
-      NEXT_PUBLIC_MAP_STYLE_URL: ${NEXT_PUBLIC_MAP_STYLE_URL:-https://tiles.openfreemap.org/styles/liberty}
-    ports:
-      - "3000:3000"
-    depends_on:
-      backend:
-        condition: service_healthy
-    networks:
-      - platform-network
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/ || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+#   frontend:
+#     build:
+#       context: ./frontend
+#       dockerfile: Dockerfile
+#       args:
+#         NEXT_PUBLIC_MAP_STYLE_URL: ${NEXT_PUBLIC_MAP_STYLE_URL:-https://tiles.openfreemap.org/styles/liberty}
+#     image: platform-frontend:dev
+#     container_name: platform-frontend
+#     restart: unless-stopped
+#     environment:
+#       NODE_ENV: production
+#       PORT: 3000
+#       BACKEND_INTERNAL_URL: http://backend:8080
+#       NEXT_PUBLIC_MAP_STYLE_URL: ${NEXT_PUBLIC_MAP_STYLE_URL:-https://tiles.openfreemap.org/styles/liberty}
+#     ports:
+#       - "3000:3000"
+#     depends_on:
+#       backend:
+#         condition: service_healthy
+#     networks:
+#       - platform-network
+#     healthcheck:
+#       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/ || exit 1"]
+#       interval: 10s
+#       timeout: 5s
+#       retries: 5
+#       start_period: 20s
 
   nginx:
     build:
@@ -95,12 +95,12 @@ services:
     volumes:
       - uploads_data:/var/app/uploads:ro
     depends_on:
-      frontend:
-        condition: service_healthy
       backend:
         condition: service_healthy
     networks:
       - platform-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/ || exit 1"]
       interval: 5s
