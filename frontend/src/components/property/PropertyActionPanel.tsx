@@ -77,7 +77,7 @@ export function PropertyActionPanel({ propertyId, propertyTitle }: PropertyActio
     setFavoriteLoading(true);
     try {
       const res = await toggleFavorite(propertyId);
-      setIsFavorited(res.isFavorited);
+      setIsFavorited(res.favorited ?? res.isFavorited ?? !isFavorited);
     } catch (err) {
       console.error("Favorite toggle failed", err);
     } finally {

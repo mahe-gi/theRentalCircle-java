@@ -269,7 +269,8 @@ export interface VisitResponse {
 
 export interface FavoriteToggleResponse {
   propertyId: number;
-  isFavorited: boolean;
+  favorited: boolean;       // actual backend field
+  isFavorited?: boolean;    // alias (legacy)
   message: string;
 }
 

@@ -44,7 +44,7 @@ export function PropertyCard({
     setFavorited((prev) => !prev); // optimistic
     try {
       const res = await toggleFavorite(property.id);
-      setFavorited(res.isFavorited);
+      setFavorited(res.favorited ?? res.isFavorited ?? !favorited);
     } catch {
       setFavorited((prev) => !prev); // revert
     } finally {
