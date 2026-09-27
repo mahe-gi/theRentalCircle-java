@@ -115,7 +115,7 @@ public class AuthController {
                 .httpOnly(true)
                 .secure(cookieSecure)
                 .sameSite("Lax")
-                .path("/api/v1/auth")
+                .path("/")
                 .maxAge(maxAgeSeconds)
                 .build();
     }
@@ -125,7 +125,7 @@ public class AuthController {
                 .httpOnly(true)
                 .secure(cookieSecure)
                 .sameSite("Lax")
-                .path("/api/v1/auth")
+                .path("/")
                 .maxAge(0)
                 .build();
     }

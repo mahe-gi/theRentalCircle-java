@@ -11,11 +11,29 @@ export const apiClient = axios.create({
   withCredentials: true, // Enables sending and receiving HttpOnly refresh cookies
 });
 
-// In-memory access token storage
+// In-memory access token storage initialized from localStorage if available
 let inMemoryAccessToken: string | null = null;
+if (typeof window !== "undefined") {
+  try {
+    inMemoryAccessToken = localStorage.getItem("rc_access_token");
+  } catch {
+    // Ignore storage errors in private browsing modes
+  }
+}
 
 export const setAccessToken = (token: string | null): void => {
   inMemoryAccessToken = token;
+  if (typeof window !== "undefined") {
+    try {
+      if (token) {
+        localStorage.setItem("rc_access_token", token);
+      } else {
+        localStorage.removeItem("rc_access_token");
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }
 };
 
 export const getAccessToken = (): string | null => {
@@ -39,6 +57,48 @@ export const refreshClient = axios.create({
   withCredentials: true,
 });
 
+// Deduplicated refresh promise to prevent concurrent calls (React StrictMode, multiple components, 401 queue)
+export interface RefreshPayload {
+  accessToken: string;
+  user: any;
+  expiresIn?: number;
+}
+
+let refreshPromise: Promise<RefreshPayload> | null = null;
+
+export const refreshSession = async (): Promise<RefreshPayload> => {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const response = await refreshClient.post("/auth/refresh");
+      const payload = response.data?.data || response.data;
+      const newAccessToken = payload?.accessToken;
+
+      if (!newAccessToken) {
+        throw new Error("Missing access token in refresh response");
+      }
+
+      setAccessToken(newAccessToken);
+      processQueue(null, newAccessToken);
+      return payload;
+    } catch (refreshError) {
+      processQueue(refreshError, null);
+      setAccessToken(null);
+      if (onAuthFailureCallback) {
+        onAuthFailureCallback();
+      }
+      throw refreshError;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+};
+
 // Request interceptor: normalizes URL path and attaches Authorization: Bearer <accessToken> if present
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -49,16 +109,16 @@ apiClient.interceptors.request.use(
       config.url = config.url.replace(/^api\/v1/, "");
     }
 
-    if (inMemoryAccessToken && config.headers) {
-      config.headers.Authorization = `Bearer ${inMemoryAccessToken}`;
+    const token = getAccessToken();
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error: AxiosError) => Promise.reject(error)
 );
 
-// Response interceptor: on 401, attempts single call to POST /api/v1/auth/refresh
-let isRefreshing = false;
+// Response interceptor: on 401, attempts deduplicated call to POST /api/v1/auth/refresh
 let failedQueue: Array<{
   resolve: (token: string) => void;
   reject: (error: unknown) => void;
@@ -95,7 +155,7 @@ apiClient.interceptors.response.use(
       originalRequest.url?.includes("/properties/search");
 
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute && !isPublicSearchRoute) {
-      if (isRefreshing) {
+      if (refreshPromise) {
         // Refresh already in progress; queue this request
         return new Promise<string>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -110,34 +170,15 @@ apiClient.interceptors.response.use(
       }
 
       originalRequest._retry = true;
-      isRefreshing = true;
 
       try {
-        const refreshResponse = await refreshClient.post("/auth/refresh");
-        const payload = refreshResponse.data?.data || refreshResponse.data;
-        const newAccessToken = payload?.accessToken;
-
-        if (!newAccessToken) {
-          throw new Error("Missing access token in refresh response");
-        }
-
-        setAccessToken(newAccessToken);
-        processQueue(null, newAccessToken);
-
+        const payload = await refreshSession();
         if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          originalRequest.headers.Authorization = `Bearer ${payload.accessToken}`;
         }
-
         return apiClient(originalRequest);
       } catch (refreshError) {
-        processQueue(refreshError, null);
-        setAccessToken(null);
-        if (onAuthFailureCallback) {
-          onAuthFailureCallback();
-        }
         return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
       }
     }
 

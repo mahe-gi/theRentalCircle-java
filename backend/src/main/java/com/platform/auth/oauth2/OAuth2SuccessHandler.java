@@ -53,7 +53,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 .httpOnly(true)
                 .secure(false) // allows http://localhost in dev
                 .sameSite("Lax")
-                .path("/api/v1/auth")
+                .path("/")
                 .maxAge(7 * 24 * 60 * 60)
                 .build();
         response.addHeader(org.springframework.http.HttpHeaders.SET_COOKIE, cookie1.toString());
@@ -62,7 +62,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 .httpOnly(true)
                 .secure(false)
                 .sameSite("Lax")
-                .path("/api/v1/auth")
+                .path("/")
                 .maxAge(7 * 24 * 60 * 60)
                 .build();
         response.addHeader(org.springframework.http.HttpHeaders.SET_COOKIE, cookie2.toString());

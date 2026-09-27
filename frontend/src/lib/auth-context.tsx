@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import {
   apiClient,
-  refreshClient,
+  refreshSession,
   setAccessToken,
   setOnAuthFailure,
 } from "./api-client";
@@ -51,22 +51,47 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  // Initialize user from localStorage if available to prevent UI flicker on refresh
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("rc_user");
+        return stored ? JSON.parse(stored) : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const saveUser = useCallback((newUser: User | null) => {
+    setUser(newUser);
+    if (typeof window !== "undefined") {
+      try {
+        if (newUser) {
+          localStorage.setItem("rc_user", JSON.stringify(newUser));
+        } else {
+          localStorage.removeItem("rc_user");
+        }
+      } catch {
+        // Ignore storage errors
+      }
+    }
+  }, []);
 
   const clearAuth = useCallback(() => {
     setAccessToken(null);
-    setUser(null);
-  }, []);
+    saveUser(null);
+  }, [saveUser]);
 
   // Silent refresh to exchange HttpOnly refresh cookie for access token + user info
   const refreshAuth = useCallback(async (): Promise<User | null> => {
     try {
-      const response = await refreshClient.post("/auth/refresh");
-      const payload = response.data?.data || response.data;
-      if (payload?.accessToken && payload?.user) {
-        setAccessToken(payload.accessToken);
-        setUser(payload.user);
+      const payload = await refreshSession();
+      if (payload?.user) {
+        saveUser(payload.user);
         return payload.user;
       }
       clearAuth();
@@ -75,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearAuth();
       return null;
     }
-  }, [clearAuth]);
+  }, [clearAuth, saveUser]);
 
   // Handle on-mount authentication initialization
   useEffect(() => {
@@ -91,6 +116,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initAuth = async () => {
       try {
         await refreshAuth();
+      } catch {
+        // refreshAuth handles clearAuth internally
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -118,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setAccessToken(payload.accessToken);
-    setUser(payload.user);
+    saveUser(payload.user);
     return payload.user;
   };
 
@@ -127,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAccessToken(accessToken);
     const response = await apiClient.get("/auth/me");
     const profile = response.data?.data || response.data;
-    setUser(profile);
+    saveUser(profile);
     return profile;
   };
 
