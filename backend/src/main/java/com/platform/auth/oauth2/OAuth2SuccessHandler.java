@@ -43,7 +43,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             .orElseThrow(() -> new RuntimeException("User not found after OAuth2"));
 
         // Generate JWT access token
-        String accessToken = jwtTokenProvider.generateToken(user);
+        String accessToken = jwtTokenProvider.generateToken(com.platform.auth.security.UserPrincipal.create(user));
 
         // Generate refresh token and set as HttpOnly cookie
         var tokenResult = refreshTokenService.createRefreshToken(user);
