@@ -52,7 +52,7 @@ export async function searchProperties(
   const response = await apiClient.get<{
     status: string;
     data: any;
-  }>("/api/v1/properties/search", { params });
+  }>("/properties/search", { params });
 
   const raw = response.data.data;
   return {
@@ -78,7 +78,7 @@ export async function suggestLocations(
   const response = await apiClient.get<{
     status: string;
     data: LocationSuggestionsResponse;
-  }>("/api/v1/properties/search/locations", { params });
+  }>("/properties/search/locations", { params });
 
   return response.data.data;
 }
@@ -89,7 +89,7 @@ export async function fetchPublicPropertyDetail(
   const response = await apiClient.get<{
     status: string;
     data: PublicPropertyDetail;
-  }>(`/api/v1/properties/${id}`);
+  }>(`/properties/${id}`);
 
   return response.data.data;
 }

@@ -30,9 +30,25 @@ export const setOnAuthFailure = (callback: AuthFailureHandler | null): void => {
   onAuthFailureCallback = callback;
 };
 
-// Request interceptor: attaches Authorization: Bearer <accessToken> if present
+// Separate unintercepted axios client for refresh calls to avoid cyclical recursion
+export const refreshClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+  withCredentials: true,
+});
+
+// Request interceptor: normalizes URL path and attaches Authorization: Bearer <accessToken> if present
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // Normalize URL to prevent accidental /api/v1/api/v1 prefix duplication
+    if (config.url?.startsWith("/api/v1/")) {
+      config.url = config.url.replace(/^\/api\/v1/, "");
+    } else if (config.url?.startsWith("api/v1/")) {
+      config.url = config.url.replace(/^api\/v1/, "");
+    }
+
     if (inMemoryAccessToken && config.headers) {
       config.headers.Authorization = `Bearer ${inMemoryAccessToken}`;
     }
@@ -59,15 +75,6 @@ const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Separate unintercepted axios client for refresh calls to avoid cyclical recursion
-const refreshClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-  withCredentials: true,
-});
-
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -79,12 +86,15 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Do not intercept 401s from the refresh or login endpoints to prevent loops
+    // Do not intercept 401s from the refresh, login, or public search routes
     const isAuthRoute =
       originalRequest.url?.includes("/auth/refresh") ||
       originalRequest.url?.includes("/auth/login");
 
-    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
+    const isPublicSearchRoute =
+      originalRequest.url?.includes("/properties/search");
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute && !isPublicSearchRoute) {
       if (isRefreshing) {
         // Refresh already in progress; queue this request
         return new Promise<string>((resolve, reject) => {

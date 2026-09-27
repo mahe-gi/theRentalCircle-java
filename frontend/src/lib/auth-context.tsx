@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import {
   apiClient,
+  refreshClient,
   setAccessToken,
   setOnAuthFailure,
 } from "./api-client";
@@ -60,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Silent refresh to exchange HttpOnly refresh cookie for access token + user info
   const refreshAuth = useCallback(async (): Promise<User | null> => {
     try {
-      const response = await apiClient.post("/auth/refresh");
+      const response = await refreshClient.post("/auth/refresh");
       const payload = response.data?.data || response.data;
       if (payload?.accessToken && payload?.user) {
         setAccessToken(payload.accessToken);
