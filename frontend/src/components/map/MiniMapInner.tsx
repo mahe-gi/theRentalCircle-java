@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { loadGoogleMaps } from "@/lib/google-maps-loader";
-import { MapPin } from "lucide-react";
+import { MapPin, ShieldCheck } from "lucide-react";
 
 interface MiniMapInnerProps {
   latitude: number;
@@ -14,7 +14,6 @@ export default function MiniMapInner({ latitude, longitude, locality }: MiniMapI
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let isCancelled = false;
@@ -24,8 +23,8 @@ export default function MiniMapInner({ latitude, longitude, locality }: MiniMapI
       })
       .catch((err) => {
         if (!isCancelled) {
-          console.error("Failed to load Google Maps for MiniMap:", err);
-          setError("Could not load Google Maps");
+          // Fallback gracefully without showing an error box
+          setMapLoaded(false);
         }
       });
     return () => {
@@ -56,45 +55,79 @@ export default function MiniMapInner({ latitude, longitude, locality }: MiniMapI
       ],
     });
 
-    const marker = new window.google.maps.Marker({
-      position: center,
-      map,
-      title: locality || "Property Location",
-    });
-
     // Approximate area circle for address privacy
     new window.google.maps.Circle({
       strokeColor: "#0F4C4A",
-      strokeOpacity: 0.6,
+      strokeOpacity: 0.8,
       strokeWeight: 2,
       fillColor: "#0F4C4A",
-      fillOpacity: 0.12,
+      fillOpacity: 0.15,
       map,
       center,
       radius: 350, // 350m privacy radius
     });
 
+    const marker = new window.google.maps.Marker({
+      position: center,
+      map,
+      title: locality || "Property Area",
+      icon: {
+        path: window.google.maps.SymbolPath.CIRCLE,
+        scale: 7,
+        fillColor: "#0F4C4A",
+        fillOpacity: 1,
+        strokeColor: "#FFFFFF",
+        strokeWeight: 2,
+      },
+    });
+
     mapRef.current = map;
   }, [mapLoaded, latitude, longitude, locality]);
 
-  if (error) {
+  // If live Google Maps is loaded, render the Google Maps container
+  if (mapLoaded) {
     return (
-      <div className="w-full h-64 rounded-2xl bg-sand flex flex-col items-center justify-center p-6 text-center text-charcoal-light border border-[#E8E4DD]">
-        <MapPin className="w-8 h-8 text-rose-500 mb-2" />
-        <span className="text-xs font-semibold text-charcoal">Location: {locality || "Verified Area"}</span>
-        <span className="text-[11px] text-charcoal-light mt-1">Google Maps preview unavailable</span>
+      <div className="relative w-full h-64 rounded-2xl overflow-hidden border border-[#E8E4DD] shadow-sm">
+        <div ref={containerRef} className="w-full h-full z-0" />
+        <div className="absolute bottom-2 left-2 z-10 px-2.5 py-1 rounded-md bg-white/90 backdrop-blur-sm border border-[#E8E4DD] text-[10px] font-semibold text-forest flex items-center gap-1 shadow-sm">
+          <ShieldCheck className="w-3 h-3 text-forest" />
+          <span>Approximate locality shown for address privacy</span>
+        </div>
       </div>
     );
   }
 
-  if (!mapLoaded) {
-    return (
-      <div className="w-full h-64 rounded-2xl bg-sand flex flex-col items-center justify-center text-charcoal-light border border-[#E8E4DD]">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-forest mb-2" />
-        <span className="text-xs font-medium">Loading Google Maps...</span>
-      </div>
-    );
-  }
+  // Graceful Fallback Vector Map preview
+  return (
+    <div className="relative w-full h-64 rounded-2xl overflow-hidden bg-[#F4F1EA] border border-[#E8E4DD] flex items-center justify-center shadow-sm select-none">
+      {/* Background Coordinate Grid */}
+      <svg className="w-full h-full absolute inset-0 pointer-events-none opacity-40">
+        <defs>
+          <pattern id="mini-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#D5CFBE" strokeWidth="0.8" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#mini-grid)" />
+      </svg>
 
-  return <div ref={containerRef} className="w-full h-64 rounded-2xl overflow-hidden border border-[#E8E4DD] z-0" />;
+      {/* 350m Privacy Area Circle Representation */}
+      <div className="absolute w-44 h-44 rounded-full border-2 border-[#0F4C4A]/40 bg-[#0F4C4A]/10 animate-pulse pointer-events-none" />
+
+      {/* Pin with Locality Badge */}
+      <div className="relative z-10 flex flex-col items-center">
+        <div className="px-3 py-1.5 rounded-full bg-forest text-white text-xs font-bold shadow-md border-2 border-white flex items-center gap-1.5 mb-1">
+          <MapPin className="w-3.5 h-3.5 text-amber-400" />
+          <span>{locality || "Verified Location"}</span>
+        </div>
+        <span className="text-[10px] text-charcoal-light bg-white/80 px-2 py-0.5 rounded-full border border-[#E8E4DD]">
+          {latitude.toFixed(4)}° N, {longitude.toFixed(4)}° E
+        </span>
+      </div>
+
+      <div className="absolute bottom-2 left-2 z-10 px-2.5 py-1 rounded-md bg-white/90 backdrop-blur-sm border border-[#E8E4DD] text-[10px] font-semibold text-forest flex items-center gap-1 shadow-sm">
+        <ShieldCheck className="w-3 h-3 text-forest" />
+        <span>Approximate locality shown for address privacy</span>
+      </div>
+    </div>
+  );
 }

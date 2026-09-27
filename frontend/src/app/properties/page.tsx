@@ -49,7 +49,7 @@ function PropertiesSearchContent() {
   const [mobileTab, setMobileTab] = useState<"list" | "map">("list");
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["properties-search", filters],
     queryFn: () => searchProperties(filters),
   });
@@ -184,12 +184,17 @@ function PropertiesSearchContent() {
 
             {/* Error State */}
             {isError && (
-              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-center justify-between">
-                <span>Something went wrong while fetching properties. Please try again.</span>
+              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-semibold">Unable to fetch properties</span>
+                  <span className="text-[11px] text-rose-600">
+                    {(error as any)?.response?.data?.message || (error as any)?.message || "Please check your network connection or try clearing filters."}
+                  </span>
+                </div>
                 <button
                   type="button"
                   onClick={() => refetch()}
-                  className="font-bold underline hover:text-rose-900"
+                  className="shrink-0 font-bold underline hover:text-rose-900 px-2 py-1 rounded hover:bg-rose-100"
                 >
                   Retry
                 </button>

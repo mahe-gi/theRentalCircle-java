@@ -59,12 +59,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
     image: platform-frontend:dev
     container_name: platform-frontend
     restart: unless-stopped
     environment:
       NODE_ENV: production
       PORT: 3000
+      BACKEND_INTERNAL_URL: http://backend:8080
+      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
     ports:
       - "3000:3000"
     depends_on:

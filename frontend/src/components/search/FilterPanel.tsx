@@ -41,6 +41,10 @@ export function FilterPanel({ filters, onChange, onClear }: FilterPanelProps) {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
+    setCityInput(filters.city || "");
+  }, [filters.city]);
+
+  useEffect(() => {
     if (cityInput.trim().length >= 2) {
       suggestLocations(cityInput, "CITY")
         .then((res) => {
