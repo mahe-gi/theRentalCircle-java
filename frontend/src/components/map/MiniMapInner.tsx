@@ -1,8 +1,20 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { loadGoogleMaps } from "@/lib/google-maps-loader";
-import { MapPin, ShieldCheck } from "lucide-react";
+import React, { useEffect, useRef } from "react";
+import {
+  Map as MapLibreMap,
+  Marker,
+  NavigationControl,
+  AttributionControl,
+} from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
+import {
+  DEFAULT_MAP_STYLE,
+  configureMapLibreWorker,
+  isValidCoordinate,
+  createGeoJsonCircle,
+} from "@/lib/maplibre-config";
+import { ShieldCheck, MapPin } from "lucide-react";
 
 interface MiniMapInnerProps {
   latitude: number;
@@ -10,121 +22,107 @@ interface MiniMapInnerProps {
   locality?: string;
 }
 
-export default function MiniMapInner({ latitude, longitude, locality }: MiniMapInnerProps) {
+export default function MiniMapInner({
+  latitude,
+  longitude,
+  locality,
+}: MiniMapInnerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
+  const mapRef = useRef<MapLibreMap | null>(null);
+
+  const hasValidCoords = isValidCoordinate(latitude, longitude);
 
   useEffect(() => {
-    let isCancelled = false;
-    loadGoogleMaps()
-      .then(() => {
-        if (!isCancelled) setMapLoaded(true);
-      })
-      .catch((err) => {
-        if (!isCancelled) {
-          // Fallback gracefully without showing an error box
-          setMapLoaded(false);
-        }
+    if (!containerRef.current || mapRef.current || !hasValidCoords) return;
+
+    configureMapLibreWorker();
+
+    const center: [number, number] = [longitude, latitude]; // [longitude, latitude]
+
+    const map = new MapLibreMap({
+      container: containerRef.current,
+      style: DEFAULT_MAP_STYLE,
+      center,
+      zoom: 14.5,
+      scrollZoom: false, // Prevent inadvertent page scroll hijacking
+      attributionControl: false,
+    });
+
+    map.addControl(new NavigationControl({ showCompass: false }), "top-left");
+
+    // Mandatory attribution
+    map.addControl(
+      new AttributionControl({
+        compact: true,
+        customAttribution:
+          '<a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> | &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OSM</a>',
+      }),
+      "bottom-right"
+    );
+
+    map.on("load", () => {
+      // Add 350m privacy circle polygon
+      const circleGeoJson = createGeoJsonCircle(center, 350);
+
+      map.addSource("privacy-circle-source", {
+        type: "geojson",
+        data: circleGeoJson,
       });
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
 
-  useEffect(() => {
-    if (!mapLoaded || !containerRef.current || mapRef.current || !window.google?.maps) return;
-
-    const center = { lat: latitude, lng: longitude };
-    const map = new window.google.maps.Map(containerRef.current, {
-      center,
-      zoom: 15,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: true,
-      zoomControl: true,
-      zoomControlOptions: {
-        position: window.google.maps.ControlPosition.RIGHT_CENTER,
-      },
-      styles: [
-        {
-          featureType: "poi",
-          elementType: "labels",
-          stylers: [{ visibility: "off" }],
+      map.addLayer({
+        id: "privacy-circle-fill",
+        type: "fill",
+        source: "privacy-circle-source",
+        paint: {
+          "fill-color": "#0F4C4A",
+          "fill-opacity": 0.15,
         },
-      ],
-    });
+      });
 
-    // Approximate area circle for address privacy
-    new window.google.maps.Circle({
-      strokeColor: "#0F4C4A",
-      strokeOpacity: 0.8,
-      strokeWeight: 2,
-      fillColor: "#0F4C4A",
-      fillOpacity: 0.15,
-      map,
-      center,
-      radius: 350, // 350m privacy radius
-    });
+      map.addLayer({
+        id: "privacy-circle-line",
+        type: "line",
+        source: "privacy-circle-source",
+        paint: {
+          "line-color": "#0F4C4A",
+          "line-width": 2,
+          "line-opacity": 0.75,
+        },
+      });
 
-    const marker = new window.google.maps.Marker({
-      position: center,
-      map,
-      title: locality || "Property Area",
-      icon: {
-        path: window.google.maps.SymbolPath.CIRCLE,
-        scale: 7,
-        fillColor: "#0F4C4A",
-        fillOpacity: 1,
-        strokeColor: "#FFFFFF",
-        strokeWeight: 2,
-      },
+      // Center dot marker
+      const markerEl = document.createElement("div");
+      markerEl.className = "w-4 h-4 rounded-full bg-[#0F4C4A] border-2 border-white shadow-md";
+
+      new Marker({ element: markerEl, anchor: "center" })
+        .setLngLat(center)
+        .addTo(map);
     });
 
     mapRef.current = map;
-  }, [mapLoaded, latitude, longitude, locality]);
 
-  // If live Google Maps is loaded, render the Google Maps container
-  if (mapLoaded) {
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, [latitude, longitude, hasValidCoords]);
+
+  if (!hasValidCoords) {
     return (
-      <div className="relative w-full h-64 rounded-2xl overflow-hidden border border-[#E8E4DD] shadow-sm">
-        <div ref={containerRef} className="w-full h-full z-0" />
-        <div className="absolute bottom-2 left-2 z-10 px-2.5 py-1 rounded-md bg-white/90 backdrop-blur-sm border border-[#E8E4DD] text-[10px] font-semibold text-forest flex items-center gap-1 shadow-sm">
-          <ShieldCheck className="w-3 h-3 text-forest" />
-          <span>Approximate locality shown for address privacy</span>
-        </div>
+      <div className="w-full h-64 rounded-2xl bg-[#F4F1EA] border border-[#E8E4DD] flex flex-col items-center justify-center p-6 text-center text-charcoal-light shadow-sm">
+        <MapPin className="w-8 h-8 text-forest/60 mb-2" />
+        <span className="text-xs font-semibold text-charcoal">Location: {locality || "Verified Area"}</span>
+        <span className="text-[11px] text-charcoal-light mt-1">Coordinates not publicly mapped</span>
       </div>
     );
   }
 
-  // Graceful Fallback Vector Map preview
   return (
-    <div className="relative w-full h-64 rounded-2xl overflow-hidden bg-[#F4F1EA] border border-[#E8E4DD] flex items-center justify-center shadow-sm select-none">
-      {/* Background Coordinate Grid */}
-      <svg className="w-full h-full absolute inset-0 pointer-events-none opacity-40">
-        <defs>
-          <pattern id="mini-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-            <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#D5CFBE" strokeWidth="0.8" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#mini-grid)" />
-      </svg>
+    <div className="relative w-full h-64 rounded-2xl overflow-hidden border border-[#E8E4DD] shadow-sm">
+      <div ref={containerRef} className="w-full h-full z-0" />
 
-      {/* 350m Privacy Area Circle Representation */}
-      <div className="absolute w-44 h-44 rounded-full border-2 border-[#0F4C4A]/40 bg-[#0F4C4A]/10 animate-pulse pointer-events-none" />
-
-      {/* Pin with Locality Badge */}
-      <div className="relative z-10 flex flex-col items-center">
-        <div className="px-3 py-1.5 rounded-full bg-forest text-white text-xs font-bold shadow-md border-2 border-white flex items-center gap-1.5 mb-1">
-          <MapPin className="w-3.5 h-3.5 text-amber-400" />
-          <span>{locality || "Verified Location"}</span>
-        </div>
-        <span className="text-[10px] text-charcoal-light bg-white/80 px-2 py-0.5 rounded-full border border-[#E8E4DD]">
-          {latitude.toFixed(4)}° N, {longitude.toFixed(4)}° E
-        </span>
-      </div>
-
-      <div className="absolute bottom-2 left-2 z-10 px-2.5 py-1 rounded-md bg-white/90 backdrop-blur-sm border border-[#E8E4DD] text-[10px] font-semibold text-forest flex items-center gap-1 shadow-sm">
+      {/* Address Privacy Badge */}
+      <div className="absolute bottom-2 left-2 z-10 px-2.5 py-1 rounded-md bg-white/90 backdrop-blur-sm border border-[#E8E4DD] text-[10px] font-semibold text-forest flex items-center gap-1 shadow-sm pointer-events-none">
         <ShieldCheck className="w-3 h-3 text-forest" />
         <span>Approximate locality shown for address privacy</span>
       </div>

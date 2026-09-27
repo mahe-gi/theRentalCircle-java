@@ -66,7 +66,7 @@ Spring Boot Modular Monolith
 ### The Simplicity Invariants
 * **No Microservices**: A clean modular monolith deployed as a single containerized application.
 * **No Premature Caching or Message Brokers**: No Redis, Kafka, or RabbitMQ for MVP-0. Database transactions and in-memory Spring thread pools handle MVP-0 needs cleanly.
-* **No Dedicated Search Engine**: Discovery is a clean product capability, not a search-engine subsystem. For MVP-0: `PostgreSQL → JPA / Specifications → Property search API → Leaflet Map`. No Elasticsearch architecture, indexing pipeline, or Redis cache.
+* **No Dedicated Search Engine**: Discovery is a clean product capability, not a search-engine subsystem. For MVP-0: `PostgreSQL → JPA / Specifications → Property search API → MapLibre GL JS Map`. No Elasticsearch architecture, indexing pipeline, or Redis cache.
 * **No PostGIS**: Standard decimal coordinates with bounding-box queries support the interactive map.
 * **Generic Technical Naming**: All technical identifiers are decoupled from product branding (`com.platform.*`, `Application.java`, `/var/app/uploads`, `platform-network`).
 
@@ -127,7 +127,7 @@ The technical architecture locks the core platform and runtime baselines. Rather
 | **Frontend Host Runtime** | Node.js / npm | `24.21.0` LTS / `11.19.0` | Active LTS JavaScript runtime matching host environment. |
 | **Frontend Language** | TypeScript | Strict (`"strict": true`) | Resolved via npm, strict type definitions mirroring backend DTOs. |
 | **Client State / HTTP** | TanStack Query / Axios | TanStack v5 / Axios | Resolved via npm for server-state caching and automatic 401 refresh. |
-| **Map Rendering** | Leaflet.js | `1.9.4` (OSM tiles) | Interactive client-side map without proprietary per-load fees. |
+| **Map Rendering** | MapLibre GL JS | `6.11.2` (OpenFreeMap) | Interactive client-side vector map using OpenFreeMap Liberty style without API key requirements. |
 | **Proxy & Ingress** | Nginx | `1.30-alpine` | Current stable Alpine reverse proxy, static asset cache, SSL termination. |
 | **Container Engine** | Docker / Compose | `29.8.0` / Compose `v2.x` | Single-command reproducible execution environment. |
 
@@ -331,7 +331,7 @@ Notifications maintain a strict separation between transactional database writes
 
 ## 10. Map, Location & Direct WhatsApp Architecture
 
-* **Interactive Map**: Leaflet.js with OpenStreetMap-compatible tiles. Stores coordinates as standard `DECIMAL(10, 8)` and `DECIMAL(11, 8)` in PostgreSQL. Viewport searches use bounding box comparisons (`lat BETWEEN :minLat AND :maxLat`). Public tile infrastructure usage complies with provider attribution and rate-limit policies.
+* **Interactive Map**: MapLibre GL JS with OpenFreeMap vector tiles (`https://tiles.openfreemap.org/styles/liberty`). Stores coordinates as standard `DECIMAL(10, 8)` and `DECIMAL(11, 8)` in PostgreSQL. Viewport searches use bounding box comparisons (`lat BETWEEN :minLat AND :maxLat`). Public tile usage complies with OpenFreeMap and OpenStreetMap attribution requirements.
 * **Direct WhatsApp Connections**: Standard `https://wa.me/<owner_number>?text=...` deep links generated on-demand. Calling `POST /api/v1/properties/{id}/contact` verifies the requesting user is logged in, records an audit event in `contact_events`, and returns the deep link. No Meta WhatsApp Business API integration is needed for MVP-0.
 
 ---

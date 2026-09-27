@@ -21,7 +21,7 @@
    * *Lead Orchestrator*: Overall state tracking in `memory.md`, cross-slice validation.
    * *Database Specialist*: Flyway SQL migrations (`V1` to `V6`), schema constraints, indexes.
    * *Backend Specialist*: Spring Boot modular monolith (`com.platform.*`), controllers, services, security.
-   * *Frontend Specialist*: Next.js 16 App Router, Tailwind tokens, TanStack Query, Leaflet maps.
+   * *Frontend Specialist*: Next.js 16 App Router, Tailwind tokens, TanStack Query, MapLibre GL JS maps.
    * *QA & Security Specialist*: Automated integration testing, security audit, regression verification.
    * *Single-Writer Constraint*: Only one agent may modify a given bounded code area at a time.
 
@@ -219,7 +219,7 @@ cd backend && ./mvnw test -Dtest=OwnerVerificationTest,AdminModerationTest
 ---
 
 ### SLICE 5 — Discovery (Search, Filters, Map & Details)
-* **Product Capability**: Anyone can search live properties across Indian cities/localities with filters (Buy/Rent, Residential/Commercial, Price, BHK, Furnishing), explore pins on an interactive Leaflet map, and view property details.
+* **Product Capability**: Anyone can search live properties across Indian cities/localities with filters (Buy/Rent, Residential/Commercial, Price, BHK, Furnishing), explore pins on an interactive MapLibre GL JS map, and view property details.
 * **Why We Need It**: Discovery is the marketplace core where tenants and buyers find genuine homes.
 * **User Journey Unlocked**: Public search, interactive map exploration, property details SSR view.
 
@@ -230,7 +230,7 @@ cd backend && ./mvnw test -Dtest=OwnerVerificationTest,AdminModerationTest
   * Strict invariant: Only properties with `status = 'LIVE'` are returned.
 - [ ] **TASK-502**: Implement `GET /api/v1/properties/search/locations` (City/locality autocomplete).
 - [ ] **TASK-503**: Frontend Public Search Page (`app/properties/page.tsx`):
-  * Dual-pane layout: Listing feed on left, interactive Leaflet map on right.
+  * Dual-pane layout: Listing feed on left, interactive MapLibre GL JS map on right.
   * Map pins synced with listing card hover states.
   * Filter panel with instant TanStack Query updates.
 - [ ] **TASK-504**: Frontend Property Details Page (`app/properties/[id]/page.tsx`):

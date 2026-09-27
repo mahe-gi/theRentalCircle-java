@@ -60,7 +60,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
+        NEXT_PUBLIC_MAP_STYLE_URL: ${NEXT_PUBLIC_MAP_STYLE_URL:-https://tiles.openfreemap.org/styles/liberty}
     image: platform-frontend:dev
     container_name: platform-frontend
     restart: unless-stopped
@@ -68,7 +68,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       BACKEND_INTERNAL_URL: http://backend:8080
-      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
+      NEXT_PUBLIC_MAP_STYLE_URL: ${NEXT_PUBLIC_MAP_STYLE_URL:-https://tiles.openfreemap.org/styles/liberty}
     ports:
       - "3000:3000"
     depends_on:

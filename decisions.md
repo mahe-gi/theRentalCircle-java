@@ -89,12 +89,12 @@ If an engineer or AI agent discovers that a `LOCKED` decision cannot be implemen
 
 ---
 
-### DEC-07: Leaflet.js with OpenStreetMap-Compatible Tiles
-* **Decision**: Use Leaflet.js with OpenStreetMap-compatible tiles for interactive property map display and location pin-picking.
-* **Why We Need It**: Eliminates mandatory third-party map billing accounts (e.g., Google Maps JavaScript API) and per-load fee risks during MVP-0.
-* **Alternatives Considered**: Google Maps API (rejected due to billing setup and per-request costs); Mapbox GL JS (rejected due to proprietary API keys).
-* **Implementation**: Dynamic client-side React component with standard OSM tile URL. Usage complies with provider attribution and rate-limit policies.
-* **Trade-offs**: Free open-source map ecosystem; requires respecting tile provider acceptable use policies.
+### DEC-07: MapLibre GL JS with OpenFreeMap Vector Tiles
+* **Decision**: Use MapLibre GL JS with OpenFreeMap vector tiles (`https://tiles.openfreemap.org/styles/liberty`) for interactive property map display and mini-maps.
+* **Why We Need It**: Eliminates mandatory third-party map billing accounts, credit card requirements, and per-load fee risks during MVP-0, while providing smooth vector rendering and crisp typography.
+* **Alternatives Considered**: Google Maps API (rejected due to mandatory API keys, billing setup, and per-request costs); Mapbox GL JS (rejected due to proprietary tokens and telemetry); Leaflet.js (replaced by MapLibre for modern vector tile performance).
+* **Implementation**: Dynamic client-side component with OpenFreeMap Liberty style and local worker assets in `public/maplibre/`. Usage complies with OpenFreeMap and OpenStreetMap attribution requirements.
+* **Trade-offs**: Free open-source map ecosystem; requires respecting provider attribution.
 * **Status**: `LOCKED`
 
 ---
@@ -132,7 +132,7 @@ If an engineer or AI agent discovers that a `LOCKED` decision cannot be implemen
 
 ### DEC-11: Exclusion of Premature Distributed Infrastructure
 * **Decision**: Do NOT include Redis, Kafka, RabbitMQ, Elasticsearch, PostGIS, or Kubernetes in MVP-0.
-* **Why We Need It**: The MVP-0 traffic profile and structured data model are handled cleanly by PostgreSQL B-tree composite indexes, Spring Boot thread pools (`@Async`), and Next.js client caching. Discovery is kept as a clean product capability, not a search-engine subsystem (`PostgreSQL → JPA / Specifications → Property search API → Leaflet Map`).
+* **Why We Need It**: The MVP-0 traffic profile and structured data model are handled cleanly by PostgreSQL B-tree composite indexes, Spring Boot thread pools (`@Async`), and Next.js client caching. Discovery is kept as a clean product capability, not a search-engine subsystem (`PostgreSQL → JPA / Specifications → Property search API → MapLibre GL JS Map`).
 * **Alternatives Considered**: Adding Redis/Kafka or Elasticsearch upfront (rejected as premature enterprise over-engineering that distracts from shipping a working product).
 * **Implementation**: Database transactions handle business consistency; `@Async` handles non-blocking email delivery; standard decimal coordinates handle viewport bounding-box queries; JPA Specifications handle dynamic filters.
 * **Trade-offs**: Maximum simplicity, zero distributed synchronization bugs; query performance will be benchmarked via `EXPLAIN/ANALYZE`.

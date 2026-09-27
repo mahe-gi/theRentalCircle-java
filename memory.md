@@ -49,7 +49,7 @@
 | **Slice 2: Authentication** | User Registration, JWT & Refresh Session | `[x] COMPLETED & FROZEN` | 16/16 integration tests passed (registration, JWT, rotation, reuse-revocation, concurrent refresh race condition, suspension, logout). |
 | **Slice 3: Owner + Property** | Owner Onboarding, Draft Wizard & Photos | `[x] COMPLETED & FROZEN` | 20/20 integration tests passed (declaration, draft CRUD, district, photo upload, magic bytes, orphan-cleanup, IDOR guard, submit lock). |
 | **Slice 4: Trust Layer** | Verification Documents & Admin Moderation | `[x] COMPLETED & FROZEN` | 34/34 integration tests passed (private storage isolation, magic bytes, streaming headers, audit logging, 409 conflict, bidirectional LIVE invariant, full KYC + property-doc erasure verified on disk — JPQL LEFT JOIN fix applied). |
-| **Slice 5: Discovery** | Search, Filters, Map & SSR Details | `[ ] TODO` | JPA search specifications, Leaflet map, details page. |
+| **Slice 5: Discovery** | Search, Filters, MapLibre & SSR Details | `[x] COMPLETED & FROZEN` | 28/28 integration tests passed (JPA multi-predicate search, AND amenity subquery, bounding box, hard cap size, location autocomplete, SSR property detail, address privacy, zero status leakage, MapLibre GL JS + OpenFreeMap stack replacement). |
 | **Slice 6: Connection** | WhatsApp, Enquiries, Visits & Favorites | `[ ] TODO` | V5 migration, wa.me deep links, visit scheduling. |
 | **Slice 7: Trust & Operations**| Reports, Moderation, In-App Notifications | `[ ] TODO` | V6 migration, reporting engine, admin audit logs. |
 | **Slice 8: Hardening** | E2E Testing, Security Audits & Deployment | `[ ] TODO` | Full user journey verification script. |
@@ -57,6 +57,40 @@
 ---
 
 ## 4. Active Checkpoint Log
+
+```text
+[CHECKPOINT-20260927-12]
+- Timestamp: 2026-09-27T08:26:00+05:30
+- Phase: SLICE 5 — Discovery (Search, Filters, MapLibre GL JS + OpenFreeMap & SSR Details) 100% FROZEN
+- Status: 100% VERIFIED & FROZEN
+- Verification Evidence:
+  1. Map Stack Modernization:
+     * Completely replaced legacy map implementations (Leaflet, Google Maps) with MapLibre GL JS (^6.11.2) + OpenFreeMap (`https://tiles.openfreemap.org/styles/liberty`).
+     * Zero active references to Leaflet, Google Maps, or Mapbox in frontend application code.
+     * OpenFreeMap vector styles configured with compliant, readable attribution.
+     * Worker chunks (`maplibre-gl-worker.mjs`, `maplibre-gl-shared.mjs`) automated via `copy-maplibre-worker.mjs` and served under `/maplibre/`.
+     * Strict [lng, lat] coordinate order invariant verified across MapLibre instances.
+     * Interactive price badges (`formatPriceBadge`: ₹24k, ₹8.2Cr), popups, desktop split layout, mobile List/Map tab switcher, and "Search this area" bounding-box search.
+     * Property detail mini-map implemented with 350m privacy circle masking exact address.
+  2. Search & Discovery Engine:
+     * JPA Criteria dynamic specification builder with 12 composable predicates.
+     * AND semantics for multi-amenity filtering via Criteria subquery with count matching.
+     * Strict bounding-box geographical filtering (`minLat`, `maxLat`, `minLng`, `maxLng`).
+     * Pagination with hard cap enforcement (HTTP 400 when size > 50).
+     * Prefix-based location autocomplete for cities, districts, localities with minimum length validation.
+  3. SSR Property Details & Privacy Protection:
+     * Server-side rendered `/properties/[id]` with dynamic OpenGraph meta tags.
+     * Strict address privacy: `address` (door/flat/street) completely withheld from public detail API and card summaries.
+     * Zero moderation status leakage: non-LIVE properties return HTTP 404 to anonymous users.
+     * Verified owner badge indicator based on KYC verification status.
+  4. Automated Integration & Regression Suites:
+     * `scripts/test-slice-5.sh`: 28/28 passed (100%).
+     * `scripts/test-slice-4.sh`: 34/34 passed (100% - zero regressions).
+     * `scripts/test-slice-3.sh`: 20/20 passed (100% - zero regressions).
+     * `scripts/test-slice-2.sh`: 16/16 passed (100% - zero regressions).
+     * Total test suite: 98/98 checks passed (100%).
+- Next Action: Slice 6 Launch (Connection: WhatsApp, Enquiries, Visits & Favorites).
+```
 
 ```text
 [CHECKPOINT-20260924-11]
