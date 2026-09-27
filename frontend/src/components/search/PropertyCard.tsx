@@ -1,26 +1,55 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { Bed, Bath, Maximize2, ShieldCheck, Heart, MapPin, IndianRupee } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Bed, Maximize2, Heart, MapPin, Loader2 } from "lucide-react";
 import type { PropertySearchResult } from "@/types/property";
+import { toggleFavorite } from "@/lib/connections-api";
+import { useAuth } from "@/lib/auth-context";
 
 interface PropertyCardProps {
   property: PropertySearchResult;
   isHighlighted?: boolean;
   onHover?: (id: number | null) => void;
+  initialFavorited?: boolean;
 }
 
-export function PropertyCard({ property, isHighlighted = false, onHover }: PropertyCardProps) {
+export function PropertyCard({
+  property,
+  isHighlighted = false,
+  onHover,
+  initialFavorited = false,
+}: PropertyCardProps) {
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+  const [favorited, setFavorited] = useState(initialFavorited);
+  const [favLoading, setFavLoading] = useState(false);
+
   const formatPrice = (price: number) => {
-    if (price >= 10000000) {
-      return `₹${(price / 10000000).toFixed(2)} Cr`;
-    }
-    if (price >= 100000) {
-      return `₹${(price / 100000).toFixed(2)} L`;
-    }
+    if (price >= 10000000) return `₹${(price / 10000000).toFixed(2)} Cr`;
+    if (price >= 100000) return `₹${(price / 100000).toFixed(2)} L`;
     return `₹${price.toLocaleString("en-IN")}`;
+  };
+
+  const handleFavorite = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      router.push("/login?redirect=/favorites");
+      return;
+    }
+    if (favLoading) return;
+    setFavLoading(true);
+    setFavorited((prev) => !prev); // optimistic
+    try {
+      const res = await toggleFavorite(property.id);
+      setFavorited(res.isFavorited);
+    } catch {
+      setFavorited((prev) => !prev); // revert
+    } finally {
+      setFavLoading(false);
+    }
   };
 
   return (
@@ -58,17 +87,22 @@ export function PropertyCard({ property, isHighlighted = false, onHover }: Prope
           </span>
         </div>
 
-        {/* Favorite Icon (Visual Only) */}
+        {/* Favorite Button */}
         <button
           type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-charcoal hover:text-rose-500 hover:bg-white transition-colors"
-          title="Save property (Coming in next release)"
+          onClick={handleFavorite}
+          aria-label={favorited ? "Remove from saved" : "Save property"}
+          className={`absolute top-3 right-3 w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center transition-colors shadow-sm ${
+            favorited
+              ? "bg-rose-500 text-white hover:bg-rose-600"
+              : "bg-white/80 text-charcoal hover:text-rose-500 hover:bg-white"
+          }`}
         >
-          <Heart className="w-4 h-4" />
+          {favLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Heart className={`w-4 h-4 ${favorited ? "fill-white" : ""}`} />
+          )}
         </button>
       </Link>
 
