@@ -50,21 +50,21 @@ public class PropertySpecification {
         if (!StringUtils.hasText(req.getCity())) {
             return null;
         }
-        return (root, query, cb) -> cb.equal(cb.lower(root.get("city")), req.getCity().trim().toLowerCase());
+        return (root, query, cb) -> cb.like(cb.lower(root.get("city")), "%" + req.getCity().trim().toLowerCase() + "%");
     }
 
     public static Specification<Property> inDistrict(SearchRequest req) {
         if (!StringUtils.hasText(req.getDistrict())) {
             return null;
         }
-        return (root, query, cb) -> cb.equal(cb.lower(root.get("district")), req.getDistrict().trim().toLowerCase());
+        return (root, query, cb) -> cb.like(cb.lower(root.get("district")), "%" + req.getDistrict().trim().toLowerCase() + "%");
     }
 
     public static Specification<Property> inLocality(SearchRequest req) {
         if (!StringUtils.hasText(req.getLocality())) {
             return null;
         }
-        return (root, query, cb) -> cb.equal(cb.lower(root.get("locality")), req.getLocality().trim().toLowerCase());
+        return (root, query, cb) -> cb.like(cb.lower(root.get("locality")), "%" + req.getLocality().trim().toLowerCase() + "%");
     }
 
     public static Specification<Property> priceBetween(SearchRequest req) {

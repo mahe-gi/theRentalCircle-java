@@ -258,7 +258,7 @@ function PropertiesSearchContent() {
             />
           </div>
 
-          {/* Right Column: Sticky Interactive Leaflet Map */}
+          {/* Right Column: Sticky Interactive Google Map */}
           <div
             className={`md:col-span-5 lg:col-span-5 md:sticky md:top-20 h-[calc(100vh-6rem)] rounded-2xl overflow-hidden border border-[#E8E4DD] shadow-sm ${
               mobileTab === "list" ? "hidden md:block" : "block h-[70vh]"

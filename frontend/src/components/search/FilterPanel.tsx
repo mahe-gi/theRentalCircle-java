@@ -150,8 +150,23 @@ export function FilterPanel({ filters, onChange, onClear }: FilterPanelProps) {
             type="text"
             value={cityInput}
             onChange={(e) => setCityInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                setShowSuggestions(false);
+                onChange({ ...filters, city: cityInput.trim() || undefined, page: 0 });
+              }
+            }}
+            onBlur={() => {
+              setTimeout(() => {
+                setShowSuggestions(false);
+                if (cityInput.trim() !== (filters.city || "")) {
+                  onChange({ ...filters, city: cityInput.trim() || undefined, page: 0 });
+                }
+              }, 200);
+            }}
             onFocus={() => cityInput.trim().length >= 2 && setShowSuggestions(true)}
-            placeholder="e.g. Bengaluru, Chennai"
+            placeholder="e.g. Bengaluru, Mumbai, Chennai"
             className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-[#E8E4DD] bg-sand/40 text-charcoal placeholder:text-charcoal-light/60 focus:outline-none focus:ring-2 focus:ring-forest/20 focus:border-forest"
           />
           {cityInput && (
