@@ -50,8 +50,8 @@
 | **Slice 3: Owner + Property** | Owner Onboarding, Draft Wizard & Photos | `[x] COMPLETED & FROZEN` | 20/20 integration tests passed (declaration, draft CRUD, district, photo upload, magic bytes, orphan-cleanup, IDOR guard, submit lock). |
 | **Slice 4: Trust Layer** | Verification Documents & Admin Moderation | `[x] COMPLETED & FROZEN` | 34/34 integration tests passed (private storage isolation, magic bytes, streaming headers, audit logging, 409 conflict, bidirectional LIVE invariant, full KYC + property-doc erasure verified on disk — JPQL LEFT JOIN fix applied). |
 | **Slice 5: Discovery** | Search, Filters, MapLibre & SSR Details | `[x] COMPLETED & FROZEN` | 28/28 integration tests passed (JPA multi-predicate search, AND amenity subquery, bounding box, hard cap size, location autocomplete, SSR property detail, address privacy, zero status leakage, MapLibre GL JS + OpenFreeMap stack replacement). |
-| **Slice 6: Connection** | WhatsApp, Enquiries, Visits & Favorites | `[ ] TODO` | V5 migration, wa.me deep links, visit scheduling. |
-| **Slice 7: Trust & Operations**| Reports, Moderation, In-App Notifications | `[ ] TODO` | V6 migration, reporting engine, admin audit logs. |
+| **Slice 6: Connection** | WhatsApp, Enquiries, Visits & Favorites | `[x] COMPLETED & FROZEN` | 59/59 integration tests passed (wa.me deep links, contact events, enquiry state machine, visit lifecycle, favorites toggle, in-app notifications). |
+| **Slice 7: Trust & Operations**| Reports, Moderation, In-App Notifications | `[x] COMPLETED & FROZEN` | 36/36 integration tests passed (user reports, moderation queues, hide property, suspended property search exclusion, user suspend/restore, admin dashboard metrics, chronological audit log). |
 | **Slice 8: Hardening** | E2E Testing, Security Audits & Deployment | `[ ] TODO` | Full user journey verification script. |
 
 ---
@@ -59,37 +59,50 @@
 ## 4. Active Checkpoint Log
 
 ```text
-[CHECKPOINT-20260927-12]
-- Timestamp: 2026-09-27T08:26:00+05:30
-- Phase: SLICE 5 — Discovery (Search, Filters, MapLibre GL JS + OpenFreeMap & SSR Details) 100% FROZEN
+[CHECKPOINT-20260927-13]
+- Timestamp: 2026-09-27T08:31:00+05:30
+- Phase: SLICES 1 THROUGH 7 (Full Product Platform) 100% VERIFIED & FROZEN
 - Status: 100% VERIFIED & FROZEN
 - Verification Evidence:
-  1. Map Stack Modernization:
+  1. Map Stack Modernization (Slice 5):
      * Completely replaced legacy map implementations (Leaflet, Google Maps) with MapLibre GL JS (^6.11.2) + OpenFreeMap (`https://tiles.openfreemap.org/styles/liberty`).
      * Zero active references to Leaflet, Google Maps, or Mapbox in frontend application code.
      * OpenFreeMap vector styles configured with compliant, readable attribution.
      * Worker chunks (`maplibre-gl-worker.mjs`, `maplibre-gl-shared.mjs`) automated via `copy-maplibre-worker.mjs` and served under `/maplibre/`.
      * Strict [lng, lat] coordinate order invariant verified across MapLibre instances.
      * Interactive price badges (`formatPriceBadge`: ₹24k, ₹8.2Cr), popups, desktop split layout, mobile List/Map tab switcher, and "Search this area" bounding-box search.
-     * Property detail mini-map implemented with 350m privacy circle masking exact address.
-  2. Search & Discovery Engine:
+     * The detail map uses a visual privacy-radius representation (350m circle); exact address text remains strictly withheld by the public API.
+  2. Search & Discovery Engine (Slice 5):
      * JPA Criteria dynamic specification builder with 12 composable predicates.
      * AND semantics for multi-amenity filtering via Criteria subquery with count matching.
      * Strict bounding-box geographical filtering (`minLat`, `maxLat`, `minLng`, `maxLng`).
      * Pagination with hard cap enforcement (HTTP 400 when size > 50).
      * Prefix-based location autocomplete for cities, districts, localities with minimum length validation.
-  3. SSR Property Details & Privacy Protection:
+  3. SSR Property Details & Privacy Protection (Slice 5):
      * Server-side rendered `/properties/[id]` with dynamic OpenGraph meta tags.
      * Strict address privacy: `address` (door/flat/street) completely withheld from public detail API and card summaries.
      * Zero moderation status leakage: non-LIVE properties return HTTP 404 to anonymous users.
      * Verified owner badge indicator based on KYC verification status.
-  4. Automated Integration & Regression Suites:
+  4. Connections & Lead Management (Slice 6):
+     * WhatsApp contact events generating wa.me links without leaking contact info.
+     * Enquiry lifecycle (`NEW` -> `CONTACTED` -> `VISIT_SCHEDULED` -> `CLOSED`).
+     * Visit scheduling state machine (`REQUESTED` -> `ACCEPTED` -> `RESCHEDULED` -> `CANCELLED`/`COMPLETED`).
+     * Favorites toggle and listing API.
+     * In-app notification center with read/unread tracking.
+  5. Trust & Operations (Slice 7):
+     * User report submission and investigation workflow.
+     * Property suspension on report resolution (`HIDE_PROPERTY`) with immediate exclusion from search/details.
+     * Admin user management (suspend and restore active status).
+     * Dashboard operational metrics and append-only audit trail logging.
+  6. Automated Full-Platform Regression Run (Slices 7 down to 2 executed sequentially):
+     * `scripts/test-slice-7.sh`: 36/36 passed (100%).
+     * `scripts/test-slice-6.sh`: 59/59 passed (100%).
      * `scripts/test-slice-5.sh`: 28/28 passed (100%).
-     * `scripts/test-slice-4.sh`: 34/34 passed (100% - zero regressions).
-     * `scripts/test-slice-3.sh`: 20/20 passed (100% - zero regressions).
-     * `scripts/test-slice-2.sh`: 16/16 passed (100% - zero regressions).
-     * Total test suite: 98/98 checks passed (100%).
-- Next Action: Slice 6 Launch (Connection: WhatsApp, Enquiries, Visits & Favorites).
+     * `scripts/test-slice-4.sh`: 34/34 passed (100%).
+     * `scripts/test-slice-3.sh`: 20/20 passed (100%).
+     * `scripts/test-slice-2.sh`: 16/16 passed (100%).
+     * Total continuous regression suite: 193/193 checks passed (100% zero-regression clean run).
+- Next Action: Slice 8 (End-to-End Hardening, Security Audits & Deployment).
 ```
 
 ```text
