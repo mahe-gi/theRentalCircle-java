@@ -45,16 +45,27 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // Generate JWT access token
         String accessToken = jwtTokenProvider.generateToken(com.platform.auth.security.UserPrincipal.create(user));
 
-        // Generate refresh token and set as HttpOnly cookie
+        // Generate refresh token and set as HttpOnly cookies matching AuthController and refreshClient
         var tokenResult = refreshTokenService.createRefreshToken(user);
         String rawRefreshToken = tokenResult.rawToken();
 
-        Cookie refreshCookie = new Cookie("refresh_token", rawRefreshToken);
-        refreshCookie.setHttpOnly(true);
-        refreshCookie.setSecure(false); // set true in production with HTTPS
-        refreshCookie.setPath("/api/v1/auth/refresh");
-        refreshCookie.setMaxAge(7 * 24 * 60 * 60);
-        response.addCookie(refreshCookie);
+        org.springframework.http.ResponseCookie cookie1 = org.springframework.http.ResponseCookie.from("refreshToken", rawRefreshToken)
+                .httpOnly(true)
+                .secure(false) // allows http://localhost in dev
+                .sameSite("Lax")
+                .path("/api/v1/auth")
+                .maxAge(7 * 24 * 60 * 60)
+                .build();
+        response.addHeader(org.springframework.http.HttpHeaders.SET_COOKIE, cookie1.toString());
+
+        org.springframework.http.ResponseCookie cookie2 = org.springframework.http.ResponseCookie.from("refresh_token", rawRefreshToken)
+                .httpOnly(true)
+                .secure(false)
+                .sameSite("Lax")
+                .path("/api/v1/auth")
+                .maxAge(7 * 24 * 60 * 60)
+                .build();
+        response.addHeader(org.springframework.http.HttpHeaders.SET_COOKIE, cookie2.toString());
 
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
             .queryParam("token", accessToken)

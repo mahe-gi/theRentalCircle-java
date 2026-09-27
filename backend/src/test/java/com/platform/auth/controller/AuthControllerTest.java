@@ -57,6 +57,7 @@ class AuthControllerTest {
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(authController, "refreshExpirationMs", 604800000L);
+        ReflectionTestUtils.setField(authController, "cookieSecure", true);
         objectMapper = new ObjectMapper();
 
         testPrincipal = UserPrincipal.builder()

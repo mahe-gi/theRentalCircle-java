@@ -28,6 +28,9 @@ public class AuthController {
     @Value("${app.jwt.refresh-expiration-ms:604800000}")
     private long refreshExpirationMs;
 
+    @Value("${app.cookie.secure:false}")
+    private boolean cookieSecure;
+
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<UserResponse>> register(@Valid @RequestBody RegisterRequest request) {
         UserResponse response = authService.register(request);
@@ -110,7 +113,7 @@ public class AuthController {
     private ResponseCookie createRefreshCookie(String token, long maxAgeSeconds) {
         return ResponseCookie.from("refreshToken", token)
                 .httpOnly(true)
-                .secure(true)
+                .secure(cookieSecure)
                 .sameSite("Lax")
                 .path("/api/v1/auth")
                 .maxAge(maxAgeSeconds)
@@ -120,7 +123,7 @@ public class AuthController {
     private ResponseCookie clearRefreshCookie() {
         return ResponseCookie.from("refreshToken", "")
                 .httpOnly(true)
-                .secure(true)
+                .secure(cookieSecure)
                 .sameSite("Lax")
                 .path("/api/v1/auth")
                 .maxAge(0)
