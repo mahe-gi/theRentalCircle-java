@@ -42,6 +42,7 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<User>;
+  loginWithToken: (accessToken: string) => Promise<User>;
   register: (data: RegisterData) => Promise<User>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<User | null>;
@@ -121,6 +122,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return payload.user;
   };
 
+  // Used by OAuth2 callback — token already obtained, just fetch user profile
+  const loginWithToken = async (accessToken: string): Promise<User> => {
+    setAccessToken(accessToken);
+    const response = await apiClient.get("/auth/me");
+    const profile = response.data?.data || response.data;
+    setUser(profile);
+    return profile;
+  };
+
   const register = async (data: RegisterData): Promise<User> => {
     const response = await apiClient.post("/auth/register", data);
     const registeredUser = response.data?.data || response.data;
@@ -144,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user,
         isLoading,
         login,
+        loginWithToken,
         register,
         logout,
         refreshAuth,

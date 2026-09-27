@@ -1,6 +1,9 @@
 package com.platform.config;
 
 import com.platform.auth.security.JwtAuthenticationFilter;
+import com.platform.auth.oauth2.OAuth2UserService;
+import com.platform.auth.oauth2.OAuth2SuccessHandler;
+import com.platform.auth.oauth2.OAuth2FailureHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,13 +34,16 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final OAuth2UserService oAuth2UserService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
                     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -51,12 +57,21 @@ public class SecurityConfig {
                     "/api/v1/auth/register",
                     "/api/v1/auth/login",
                     "/api/v1/auth/refresh",
-                    "/api/v1/auth/logout"
+                    "/api/v1/auth/logout",
+                    "/oauth2/**",
+                    "/login/oauth2/**"
                 ).permitAll()
                 .requestMatchers("/api/v1/auth/me").authenticated()
                 .requestMatchers("/api/v1/properties/search", "/api/v1/properties/search/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/properties/*").permitAll()
                 .anyRequest().authenticated()
+            )
+            .oauth2Login(oauth2 -> oauth2
+                .userInfoEndpoint(userInfo -> userInfo
+                    .userService(oAuth2UserService)
+                )
+                .successHandler(oAuth2SuccessHandler)
+                .failureHandler(oAuth2FailureHandler)
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
